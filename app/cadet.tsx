@@ -268,7 +268,33 @@ export default function CadetDashboard() {
           <TouchableOpacity onPress={handleLogout} style={styles.iconBtn}>
             <LogOut color="rgba(255,255,255,0.7)" size={20} />
           </TouchableOpacity>
-          <Text style={styles.headerBrand}>UNIT DASHBOARD</Text>
+          <View style={styles.unitHeaderGroup}>
+            <View style={styles.headerLogoCircle}>
+              <Image
+                source={require("../assets/images/rotc-logo.jpg")}
+                style={styles.headerTinyLogo}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.unitHeaderCol}>
+              <Text style={styles.unitHeaderTopText} adjustsFontSizeToFit numberOfLines={1}>
+                DEPARTMENT OF MILITARY SCIENCE AND TACTICS
+              </Text>
+              <Text style={styles.unitHeaderMidText} adjustsFontSizeToFit numberOfLines={1}>
+                MSU – Zamboanga Sibugay ROTC Unit
+              </Text>
+              <Text style={styles.unitHeaderBotText} adjustsFontSizeToFit numberOfLines={1}>
+                Datu Panas, Buug, Zamboanga Sibugay
+              </Text>
+            </View>
+            <View style={styles.headerLogoCircleGold}>
+              <Image
+                source={require("../assets/images/batch-logo.png")}
+                style={styles.headerTinyLogo}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
           <TouchableOpacity style={styles.iconBtn}>
             <Bell color="rgba(255,255,255,0.7)" size={20} />
           </TouchableOpacity>
@@ -533,6 +559,57 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 2,
     opacity: 0.9,
+  },
+  unitHeaderGroup: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  headerLogoCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFF",
+    padding: 2,
+    marginRight: 6,
+  },
+  headerLogoCircleGold: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#D4A353",
+    padding: 2,
+    marginLeft: 6,
+  },
+  headerTinyLogo: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 14,
+  },
+  unitHeaderCol: {
+    flex: 1,
+    alignItems: "center",
+  },
+  unitHeaderTopText: {
+    color: "#D4A353",
+    fontSize: 9,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: 0.5,
+  },
+  unitHeaderMidText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginVertical: 1,
+  },
+  unitHeaderBotText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 9,
+    textAlign: "center",
   },
   iconBtn: {
     width: 40,

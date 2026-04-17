@@ -187,6 +187,14 @@ export default function DutyReports() {
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
 
+  const [confirmProp, setConfirmProp] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText: string;
+    danger: boolean;
+  } | null>(null);
+
   useEffect(() => {
     const bootstrap = async () => {
       const user = await requireRole(
@@ -245,47 +253,43 @@ export default function DutyReports() {
       Alert.alert("Not allowed", "Only Admin can delete session logs.");
       return;
     }
-    Alert.alert(
-      "Delete Session Log",
-      "Delete this attendance log?\n\nThis will permanently delete the session and its attendance records.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const { error } = await supabase
-                .from("sessions")
-                .delete()
-                .eq("id", session.id);
-              if (error) throw error;
+    
+    setConfirmProp({
+      title: "Delete Session Log",
+      message: "Delete this attendance log?\n\nThis will permanently delete the session and its attendance records.",
+      confirmText: "Delete",
+      danger: true,
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          const { error } = await supabase
+            .from("sessions")
+            .delete()
+            .eq("id", session.id);
+          if (error) throw error;
 
-              setReports((prev) => {
-                const next = prev.filter((s) => s.id !== session.id);
-                cacheReports(next).catch(() => {});
-                return next;
-              });
-              if (selectedSession?.id === session.id) {
-                setSelectedSession(null);
-                setAttendanceRecords([]);
-              }
+          setReports((prev) => {
+            const next = prev.filter((s) => s.id !== session.id);
+            cacheReports(next).catch(() => {});
+            return next;
+          });
+          if (selectedSession?.id === session.id) {
+            setSelectedSession(null);
+            setAttendanceRecords([]);
+          }
 
-              await storage.setItem(sessionRecordsCacheKey(session.id), JSON.stringify([]));
-            } catch (error: any) {
-              if (shouldSilenceRemoteFailureAlerts()) {
-                console.warn("Delete session log:", error?.message);
-              } else {
-                alertRemoteFailure("Delete Failed", error?.message);
-              }
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ],
-    );
+          await storage.setItem(sessionRecordsCacheKey(session.id), JSON.stringify([]));
+        } catch (error: any) {
+          if (shouldSilenceRemoteFailureAlerts()) {
+            console.warn("Delete session log:", error?.message);
+          } else {
+            alertRemoteFailure("Delete Failed", error?.message);
+          }
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
   };
 
   const exportSessionReport = async (session: any) => {
@@ -692,18 +696,13 @@ export default function DutyReports() {
       await Sharing.shareAsync(fileUri);
 
       if (currentUser?.role === "admin") {
-        Alert.alert(
-          "Export complete",
-          "Attendance sheet exported.\n\nDo you want to delete this session log now?",
-          [
-            { text: "Keep", style: "cancel" },
-            {
-              text: "Delete Log",
-              style: "destructive",
-              onPress: () => deleteSessionLog(session),
-            },
-          ],
-        );
+        setConfirmProp({
+          title: "Export complete",
+          message: "Attendance sheet exported.\n\nDo you want to delete this session log now?",
+          confirmText: "Delete Log",
+          danger: true,
+          onConfirm: () => deleteSessionLog(session),
+        });
       } else {
         Alert.alert("Export complete", "Attendance sheet exported.");
       }
@@ -883,7 +882,7 @@ export default function DutyReports() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#1F3D2B", "#2C533A"]} style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
           <ArrowLeft color="#FFF" size={24} />
         </TouchableOpacity>
         <View>
@@ -1038,6 +1037,38 @@ export default function DutyReports() {
             ) : (
               <Text style={styles.modalFoot}>Read-only for officers.</Text>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Web-Reliable Confirm Modal */}
+      <Modal visible={!!confirmProp} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{confirmProp?.title}</Text>
+            <Text style={styles.modalSub}>{confirmProp?.message}</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setConfirmProp(null)}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmBtn, 
+                  confirmProp?.danger ? styles.confirmBtnDanger : styles.confirmBtnSafe
+                ]}
+                onPress={() => {
+                  if (confirmProp) {
+                    confirmProp.onConfirm();
+                  }
+                  setConfirmProp(null);
+                }}
+              >
+                <Text style={styles.confirmText}>{confirmProp?.confirmText}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1252,4 +1283,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontSize: 12,
   },
+  modalActions: { flexDirection: "row", justifyContent: "flex-end", marginTop: 6 },
+  cancelBtn: { paddingVertical: 10, paddingHorizontal: 14 },
+  cancelText: { color: "#6E7A71", fontWeight: "700" },
+  confirmBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  confirmBtnDanger: { backgroundColor: "#C62828" },
+  confirmBtnSafe: { backgroundColor: "#2E7D32" },
+  confirmText: { color: "#FFF", fontWeight: "800" },
 });

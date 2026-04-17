@@ -217,22 +217,37 @@ export default function DigitalIDScreen() {
   const handleDownload = async () => {
     try {
       if (Platform.OS === "web") {
-        // Log the event for debugging
-        console.log("Triggering Web Print/Download...");
+        const isMessenger = /FBAN|FBAV|Messenger|Instagram|Snapchat/i.test(navigator.userAgent);
         
-        // Special Web Fallback: Use native browser print for maximum reliability
-        // We trigger the print dialog which allows "Save as PDF" or "Print"
-        window.print();
-        
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        
-        // If they are in a restricted browser (like Messenger), show a tip
-        const isMessenger = /FBAN|FBAV|Messenger/i.test(navigator.userAgent);
         if (isMessenger) {
           Alert.alert(
-            "Download Tip", 
-            "In-app browsers (like Messenger) might block downloads. If nothing happens, tap the 3 dots (...) in the corner and choose 'Open in Chrome/Safari'."
+            "Download Blocked by App", 
+            "You are using an in-app browser. Please tap the 3 dots (...) in the corner and choose 'Open in Chrome/Browser' to download your Digital ID in high quality."
           );
+          return;
+        }
+
+        try {
+          const html2canvas = (await import('html2canvas')).default;
+          const element = document.getElementById('printable-card');
+          if (element) {
+            const canvas = await html2canvas(element, {
+              scale: 4, // High-quality capturing
+              useCORS: true,
+              allowTaint: true,
+              backgroundColor: '#FFFFFF',
+            });
+            const dataUrl = canvas.toDataURL('image/png', 1.0);
+            
+            const link = document.createElement('a');
+            link.download = `ROTC_ID_${displayCadet?.id_number || 'Cadet'}.png`;
+            link.href = dataUrl;
+            link.click();
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          }
+        } catch (e) {
+          console.error("Web download error:", e);
+          Alert.alert("Error", "Could not process high-quality ID. Try again or try using a different browser.");
         }
         return;
       }
@@ -273,13 +288,6 @@ export default function DigitalIDScreen() {
   if (mode === "loading") {
     return (
       <SafeAreaView style={styles.safeArea}>
-        {Platform.OS === "web" && (
-          <style dangerouslySetInnerHTML={{ __html: `
-            @media print {
-              .no-print { display: none !important; }
-            }
-          `}} />
-        )}
         <ActivityIndicator style={{ flex: 1 }} color="#1F3D2B" />
       </SafeAreaView>
     );
@@ -298,17 +306,12 @@ export default function DigitalIDScreen() {
 
     return (
       <SafeAreaView style={styles.safeArea}>
-        {Platform.OS === "web" && (
-          <style dangerouslySetInnerHTML={{ __html: `
-            @media print {
-              .no-print { display: none !important; }
-            }
-          `}} />
-        )}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backBtn}
+            activeOpacity={0.6}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
             <ArrowLeft color="#111" size={24} />
           </TouchableOpacity>
@@ -424,30 +427,11 @@ export default function DigitalIDScreen() {
 
   const displayPhoto = photoUri ?? displayCadet?.photo_url ?? null;
   const isOwnCard = mode === "cadet";
-  const isOfficerCard = isOwnCard && displayCadet?.role === "officer";
+  const isOfficerCard = displayCadet?.role === "officer";
   const canUploadPhoto = isOwnCard || mode === "public";
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {Platform.OS === "web" && (
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            body { background-color: white !important; margin: 0 !important; padding: 0 !important; }
-            #no-print-header, #no-print-download, #no-print-share, .lookup-section { 
-               display: none !important; 
-            }
-            #printable-card { 
-               position: fixed; 
-               top: 50%; 
-               left: 50%; 
-               transform: translate(-50%, -50%) scale(1.5);
-               z-index: 9999;
-               background: white;
-               border: none !important;
-            }
-          }
-        `}} />
-      )}
       <View id="no-print-header" style={styles.header}>
         <TouchableOpacity
           onPress={() => {
@@ -458,6 +442,8 @@ export default function DigitalIDScreen() {
             }
           }}
           style={styles.backBtn}
+          activeOpacity={0.6}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
           <ArrowLeft color="#111" size={24} />
         </TouchableOpacity>
@@ -509,7 +495,7 @@ export default function DigitalIDScreen() {
                 </View>
                 <View style={styles.headerTextGroup}>
                   <Text style={styles.headerTextSys} adjustsFontSizeToFit>
-                    DEPARTMENT OF MILITARY SCIENCE
+                    DEPARTMENT OF MILITARY SCIENCE AND TACTICS
                   </Text>
                   <Text style={styles.headerTextMain} adjustsFontSizeToFit>
                     MSU – Zamboanga Sibugay ROTC Unit

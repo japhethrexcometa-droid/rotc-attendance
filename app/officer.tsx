@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import {
   Calendar,
@@ -7,12 +8,14 @@ import {
   LogOut,
   ScanLine,
   Settings,
+  ShieldCheck,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -106,8 +109,9 @@ export default function OfficerDashboard() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
-      <View
+      {/* Premium Header */}
+      <LinearGradient
+        colors={["#1F3D2B", "#2C533A"]}
         style={[
           styles.header,
           {
@@ -118,44 +122,77 @@ export default function OfficerDashboard() {
           },
         ]}
       >
-        <View style={styles.headerInfo}>
-          <Text
-            style={[
-              styles.headerName,
-              isCompact ? styles.headerNameCompact : null,
-            ]}
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={styles.headerIconBtn}
           >
-            {userSession?.full_name ?? "Officer"}
-          </Text>
-          <Text style={styles.headerPlatoon}>
-            {userSession?.platoon
-              ? `Platoon: ${userSession.platoon}`
-              : "No Platoon Assigned"}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
+            <LogOut color="rgba(255,255,255,0.7)" size={20} />
+          </TouchableOpacity>
+          <View style={styles.unitHeaderGroup}>
+            <View style={styles.headerLogoCircle}>
+              <Image
+                source={require("../assets/images/rotc-logo.jpg")}
+                style={styles.headerTinyLogo}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.unitHeaderCol}>
+              <Text style={styles.unitHeaderTopText} adjustsFontSizeToFit numberOfLines={1}>
+                DEPARTMENT OF MILITARY SCIENCE AND TACTICS
+              </Text>
+              <Text style={styles.unitHeaderMidText} adjustsFontSizeToFit numberOfLines={1}>
+                MSU – Zamboanga Sibugay ROTC Unit
+              </Text>
+              <Text style={styles.unitHeaderBotText} adjustsFontSizeToFit numberOfLines={1}>
+                Datu Panas, Buug, Zamboanga Sibugay
+              </Text>
+            </View>
+            <View style={styles.headerLogoCircleGold}>
+              <Image
+                source={require("../assets/images/batch-logo.png")}
+                style={styles.headerTinyLogo}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
           <TouchableOpacity
             onPress={() => router.push("/digital-id")}
             style={styles.headerIconBtn}
             accessibilityLabel="My digital ID"
           >
-            <IdCard color="#FFF" size={20} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push("/settings")}
-            style={styles.headerIconBtn}
-            accessibilityLabel="Field mode settings"
-          >
-            <Settings color="#FFF" size={22} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.logoutBtn, styles.headerIconBtn]}
-            onPress={handleLogout}
-          >
-            <LogOut color="#FFF" size={20} />
+            <IdCard color="rgba(255,255,255,0.7)" size={20} />
           </TouchableOpacity>
         </View>
-      </View>
+
+        <View style={styles.profileRow}>
+          <View style={styles.profileInfo}>
+            <Text style={styles.greeting}>Duty Officer</Text>
+            <Text style={styles.adminName}>
+              {userSession?.full_name?.toUpperCase() ?? "OFFICER"}
+            </Text>
+            <View style={styles.roleBadge}>
+              <ShieldCheck
+                color="#D4A353"
+                size={12}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.roleText}>
+                {userSession?.platoon
+                  ? `PLATOON ${userSession.platoon}`
+                  : "UNASSIGNED"}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push("/settings")}
+            style={styles.settingsIconBtn}
+            accessibilityLabel="Settings"
+          >
+            <Settings color="rgba(255,255,255,0.8)" size={22} />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
       {/* Tab Content */}
       <View style={{ flex: 1 }}>
@@ -692,28 +729,18 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    backgroundColor: "#1F3D2B",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: Platform.OS === "ios" ? 20 : 40,
+    paddingBottom: 25,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 25,
   },
-  headerInfo: { flex: 1, paddingRight: 10 },
-  headerName: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "bold",
-    flexShrink: 1,
-  },
-  headerNameCompact: { fontSize: 16 },
-  headerPlatoon: {
-    color: "#D4A353",
-    fontSize: 13,
-    marginTop: 2,
-    fontWeight: "600",
-  },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerIconBtn: {
     width: 38,
     height: 38,
@@ -722,8 +749,88 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.12)",
   },
-  logoutBtn: {
-    backgroundColor: "rgba(255,255,255,0.2)",
+  settingsIconBtn: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unitHeaderGroup: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  headerLogoCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFF",
+    padding: 2,
+    marginRight: 6,
+  },
+  headerLogoCircleGold: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#D4A353",
+    padding: 2,
+    marginLeft: 6,
+  },
+  headerTinyLogo: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 14,
+  },
+  unitHeaderCol: {
+    flex: 1,
+    alignItems: "center",
+  },
+  unitHeaderTopText: {
+    color: "#D4A353",
+    fontSize: 9,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: 0.5,
+  },
+  unitHeaderMidText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginVertical: 1,
+  },
+  unitHeaderBotText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 9,
+    textAlign: "center",
+  },
+  profileRow: { flexDirection: "row", alignItems: "center" },
+  profileInfo: { flex: 1 },
+  greeting: { color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: "600" },
+  adminName: {
+    color: "#FFF",
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 4,
+    letterSpacing: 0.5,
+  },
+  roleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(212, 163, 83, 0.15)",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 10,
+  },
+  roleText: {
+    color: "#D4A353",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
 
   centeredMessage: {

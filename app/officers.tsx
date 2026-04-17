@@ -90,6 +90,7 @@ export default function OfficerManagementScreen() {
       .from("users")
       .select("id, id_number, full_name, platoon, year_level, is_active")
       .eq("role", "officer")
+      .eq("is_deleted", false)
       .order("full_name", { ascending: true });
 
     if (error) {
@@ -270,7 +271,7 @@ export default function OfficerManagementScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#1F3D2B", "#2C533A"]} style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
           <ArrowLeft color="#FFF" size={24} />
         </TouchableOpacity>
         <View style={styles.headerTextWrap}>

@@ -197,7 +197,7 @@ export default function AttendanceScores() {
     <View style={styles.container}>
       <LinearGradient colors={["#1F3D2B", "#2C533A"]} style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
             <ArrowLeft color="#FFF" size={24} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>LEADERBOARD</Text>

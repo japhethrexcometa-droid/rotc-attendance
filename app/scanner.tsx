@@ -164,7 +164,7 @@ export default function QRScanner() {
       {/* Overlay UI */}
       <View style={styles.overlay}>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
             <ArrowLeft color="#FFF" size={24} />
           </TouchableOpacity>
           <Text style={styles.title}>SCANNER</Text>

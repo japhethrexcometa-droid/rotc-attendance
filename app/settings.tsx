@@ -83,6 +83,8 @@ export default function SettingsScreen() {
             onPress={() => router.back()}
             style={styles.backBtn}
             accessibilityLabel="Back"
+            activeOpacity={0.6}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
             <ArrowLeft color="#FFF" size={22} />
           </TouchableOpacity>
