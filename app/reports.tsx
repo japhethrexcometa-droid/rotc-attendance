@@ -65,7 +65,9 @@ type AttendanceRecordRow = {
 };
 
 function normalizeNameText(value: string | null | undefined): string {
-  return String(value ?? "").trim().replace(/\s+/g, " ");
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 function formatLastFirst(fullName: string): string {
@@ -87,7 +89,9 @@ function normalizeSchoolName(value: string | null | undefined): string {
   return raw;
 }
 
-function normalizeGender(value: string | null | undefined): "MALE" | "FEMALE" | "N/A" {
+function normalizeGender(
+  value: string | null | undefined,
+): "MALE" | "FEMALE" | "N/A" {
   const up = normalizeNameText(value).toUpperCase();
   if (up === "MALE" || up === "M") return "MALE";
   if (up === "FEMALE" || up === "F") return "FEMALE";
@@ -196,6 +200,12 @@ export default function DutyReports() {
     danger: boolean;
   } | null>(null);
 
+  const [downloadReady, setDownloadReady] = useState<{
+    fileName: string;
+    content: string;
+    session: any;
+  } | null>(null);
+
   useEffect(() => {
     const bootstrap = async () => {
       const user = await requireRole(
@@ -254,10 +264,11 @@ export default function DutyReports() {
       Alert.alert("Not allowed", "Only Admin can delete session logs.");
       return;
     }
-    
+
     setConfirmProp({
       title: "Delete Session Log",
-      message: "Delete this attendance log?\n\nThis will permanently delete the session and its attendance records.",
+      message:
+        "Delete this attendance log?\n\nThis will permanently delete the session and its attendance records.",
       confirmText: "Delete",
       danger: true,
       onConfirm: async () => {
@@ -279,7 +290,10 @@ export default function DutyReports() {
             setAttendanceRecords([]);
           }
 
-          await storage.setItem(sessionRecordsCacheKey(session.id), JSON.stringify([]));
+          await storage.setItem(
+            sessionRecordsCacheKey(session.id),
+            JSON.stringify([]),
+          );
         } catch (error: any) {
           if (shouldSilenceRemoteFailureAlerts()) {
             console.warn("Delete session log:", error?.message);
@@ -289,7 +303,7 @@ export default function DutyReports() {
         } finally {
           setLoading(false);
         }
-      }
+      },
     });
   };
 
@@ -312,7 +326,9 @@ export default function DutyReports() {
         if (a.session_date !== b.session_date) {
           return String(a.session_date).localeCompare(String(b.session_date));
         }
-        return (a.session_type === "AM" ? 0 : 1) - (b.session_type === "AM" ? 0 : 1);
+        return (
+          (a.session_type === "AM" ? 0 : 1) - (b.session_type === "AM" ? 0 : 1)
+        );
       });
 
       // 2. Load attendance WITH gender and school
@@ -347,7 +363,9 @@ export default function DutyReports() {
           .replace(/"/g, "&quot;");
 
       const sessionIndexById = new Map<string, number>();
-      sortedSessions.forEach((s, idx) => sessionIndexById.set(String(s.id), idx));
+      sortedSessions.forEach((s, idx) =>
+        sessionIndexById.set(String(s.id), idx),
+      );
 
       // 3. Build cadet map with gender + school
       type GradeRow = {
@@ -382,7 +400,9 @@ export default function DutyReports() {
         const targetRow = targetMap.get(cadetId)!;
         const slot = sessionIndexById.get(String(row.session_id));
         if (slot === undefined) continue;
-        targetRow.scores[slot] = scoreForStatus(String(row.status ?? "").toLowerCase());
+        targetRow.scores[slot] = scoreForStatus(
+          String(row.status ?? "").toLowerCase(),
+        );
       }
 
       // 4. Group by School + Gender, sort alphabetically
@@ -391,7 +411,8 @@ export default function DutyReports() {
 
       for (const cadet of allCadets) {
         const gender = normalizeGender(cadet.gender);
-        const genderLabel = gender === "FEMALE" ? "Female" : gender === "MALE" ? "Male" : "N/A";
+        const genderLabel =
+          gender === "FEMALE" ? "Female" : gender === "MALE" ? "Male" : "N/A";
         const school = normalizeSchoolName(cadet.school);
         const key = `${school} - ${genderLabel}`;
         if (!groups.has(key)) groups.set(key, []);
@@ -403,7 +424,11 @@ export default function DutyReports() {
       for (const key of sortedGroupKeys) {
         groups
           .get(key)!
-          .sort((a, b) => formatLastFirst(a.fullName).localeCompare(formatLastFirst(b.fullName)));
+          .sort((a, b) =>
+            formatLastFirst(a.fullName).localeCompare(
+              formatLastFirst(b.fullName),
+            ),
+          );
       }
 
       // Also add an "ALL CADETS" master sheet
@@ -422,14 +447,20 @@ export default function DutyReports() {
         const sessionDateHeaders = sortedSessions
           .map((s) => {
             const d = new Date(`${s.session_date}T00:00:00`);
-            const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            const label = d.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
             return `<Cell ss:StyleID="sDateHead"><Data ss:Type="String">${escXml(`${label} ${s.session_type}`)}</Data></Cell>`;
           })
           .join("\n            ");
 
         // Day number headers
         const dayNumberHeaders = sortedSessions
-          .map((_, idx) => `<Cell ss:StyleID="sDayNo"><Data ss:Type="Number">${idx + 1}</Data></Cell>`)
+          .map(
+            (_, idx) =>
+              `<Cell ss:StyleID="sDayNo"><Data ss:Type="Number">${idx + 1}</Data></Cell>`,
+          )
           .join("\n            ");
 
         // Data rows
@@ -518,12 +549,18 @@ export default function DutyReports() {
         const sessionDateHeaders = sortedSessions
           .map((s) => {
             const d = new Date(`${s.session_date}T00:00:00`);
-            const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            const label = d.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
             return `<Cell ss:StyleID="sDateHead"><Data ss:Type="String">${escXml(`${label} ${s.session_type}`)}</Data></Cell>`;
           })
           .join("\n            ");
         const dayNumberHeaders = sortedSessions
-          .map((_, idx) => `<Cell ss:StyleID="sDayNo"><Data ss:Type="Number">${idx + 1}</Data></Cell>`)
+          .map(
+            (_, idx) =>
+              `<Cell ss:StyleID="sDayNo"><Data ss:Type="Number">${idx + 1}</Data></Cell>`,
+          )
           .join("\n            ");
         const dataRows = rows
           .map((officer, idx) => {
@@ -600,7 +637,9 @@ export default function DutyReports() {
         allSheets.push(buildWorksheet(key, groups.get(key)!));
       }
       // 3. Officers sheet (separate, always last)
-      const allOfficers = [...officerMap.values()].sort((a, b) => a.fullName.localeCompare(b.fullName));
+      const allOfficers = [...officerMap.values()].sort((a, b) =>
+        a.fullName.localeCompare(b.fullName),
+      );
       if (allOfficers.length > 0) {
         allSheets.push(buildOfficerWorksheet(allOfficers));
       }
@@ -691,7 +730,7 @@ export default function DutyReports() {
       const fileName = `ROTC_Attendance_${Date.now()}.xml`;
 
       if (Platform.OS === "web") {
-        downloadFileWeb(fileName, xmlContent);
+        setDownloadReady({ fileName, content: xmlContent, session });
       } else {
         const fileUri =
           ((FileSystem as any).documentDirectory ||
@@ -703,18 +742,18 @@ export default function DutyReports() {
         } else {
           Alert.alert("Export complete", `Saved to: ${fileUri}`);
         }
-      }
 
-      if (currentUser?.role === "admin") {
-        setConfirmProp({
-          title: "Export complete",
-          message: "Attendance sheet exported.\n\nDo you want to delete this session log now?",
-          confirmText: "Delete Log",
-          danger: true,
-          onConfirm: () => deleteSessionLog(session),
-        });
-      } else {
-        Alert.alert("Export complete", "Attendance sheet exported.");
+        if (currentUser?.role === "admin") {
+          setConfirmProp({
+            title: "Export complete",
+            message: "Attendance sheet exported.\n\nDo you want to delete this session log now?",
+            confirmText: "Delete Log",
+            danger: true,
+            onConfirm: () => deleteSessionLog(session),
+          });
+        } else {
+          Alert.alert("Export complete", "Attendance sheet exported.");
+        }
       }
     } catch (error: any) {
       alertRemoteFailure("Export Failed", error?.message);
@@ -892,7 +931,12 @@ export default function DutyReports() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#1F3D2B", "#2C533A"]} style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          activeOpacity={0.6}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+        >
           <ArrowLeft color="#FFF" size={24} />
         </TouchableOpacity>
         <View>
@@ -1051,6 +1095,82 @@ export default function DutyReports() {
         </View>
       </Modal>
 
+      {/* DOWNLOAD READY MODAL FOR WEB COMPATIBILITY */}
+      <Modal
+        visible={downloadReady !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDownloadReady(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>File Ready</Text>
+            
+            <View style={styles.downloadBox}>
+              <FileSpreadsheet color="#4A5D4E" size={40} />
+              <Text style={styles.downloadFileName}>{downloadReady?.fileName}</Text>
+              <Text style={styles.downloadHint}>
+                Your device handles file downloads securely. Tap the button below to complete the download.
+              </Text>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => {
+                  setDownloadReady(null);
+                  if (currentUser?.role === "admin") {
+                    setConfirmProp({
+                      title: "Export Canceled",
+                      message: "Attendance sheet was NOT downloaded.\n\nDo you still want to delete this session log?",
+                      confirmText: "Delete Log",
+                      danger: true,
+                      onConfirm: () => deleteSessionLog(downloadReady?.session),
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnSafe, { paddingHorizontal: 12 }]}
+                onPress={() => {
+                  if (!downloadReady) return;
+                  // MUST BE SYNCHRONOUS
+                  downloadFileWeb(downloadReady.fileName, downloadReady.content);
+                  
+                  // Show admin delete prompt if needed
+                  if (currentUser?.role === "admin") {
+                    setTimeout(() => {
+                      setConfirmProp({
+                        title: "Export Finished",
+                        message: "Attendance sheet downloaded.\n\nDo you want to delete this session log now?",
+                        confirmText: "Delete Log",
+                        danger: true,
+                        onConfirm: () => deleteSessionLog(downloadReady.session),
+                      });
+                      setDownloadReady(null);
+                    }, 500);
+                  } else {
+                    setDownloadReady(null);
+                    setConfirmProp({
+                      title: "Export complete",
+                      message: "Attendance sheet exported successfully.",
+                      confirmText: "OK",
+                      danger: false,
+                      onConfirm: () => {},
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.confirmText}>Download Now</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Web-Reliable Confirm Modal */}
       <Modal visible={!!confirmProp} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -1066,8 +1186,10 @@ export default function DutyReports() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
-                  styles.confirmBtn, 
-                  confirmProp?.danger ? styles.confirmBtnDanger : styles.confirmBtnSafe
+                  styles.confirmBtn,
+                  confirmProp?.danger
+                    ? styles.confirmBtnDanger
+                    : styles.confirmBtnSafe,
                 ]}
                 onPress={() => {
                   if (confirmProp) {
@@ -1076,7 +1198,9 @@ export default function DutyReports() {
                   setConfirmProp(null);
                 }}
               >
-                <Text style={styles.confirmText}>{confirmProp?.confirmText}</Text>
+                <Text style={styles.confirmText}>
+                  {confirmProp?.confirmText}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1293,7 +1417,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontSize: 12,
   },
-  modalActions: { flexDirection: "row", justifyContent: "flex-end", marginTop: 6 },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 6,
+  },
   cancelBtn: { paddingVertical: 10, paddingHorizontal: 14 },
   cancelText: { color: "#6E7A71", fontWeight: "700" },
   confirmBtn: {
