@@ -323,7 +323,7 @@ function ResultsTab({
     const { data } = await supabase
       .from("attendance")
       .select(
-        "id, status, scan_time, users!inner(full_name, id_number, platoon)",
+        "id, status, scan_time, users!attendance_cadet_id_fkey!inner(full_name, id_number, platoon)",
       )
       .in("session_id", todaySessionIds)
       .eq("scanned_by", userSession.id)
@@ -461,7 +461,7 @@ function HistoryTab({
     const { data: scanData } = await supabase
       .from("attendance")
       .select(
-        "id, status, scan_time, cadet_id, users!inner(full_name, id_number, platoon), sessions(session_date, session_type)",
+        "id, status, scan_time, cadet_id, users!attendance_cadet_id_fkey!inner(full_name, id_number, platoon), sessions(session_date, session_type)",
       )
       .eq("scanned_by", userSession.id)
       .order("scan_time", { ascending: false })
