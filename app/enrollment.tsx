@@ -8,6 +8,7 @@ import * as Sharing from "expo-sharing";
 import { ArrowLeft, FileSpreadsheet, Upload, CheckCircle2, Info } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
