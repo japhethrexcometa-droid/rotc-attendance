@@ -42,7 +42,7 @@ const { width, height } = Dimensions.get("window");
 
 const ID_WIDTH = Math.min(width - 32, 420);
 const ID_HEIGHT = ID_WIDTH * 1.588;
-const PUBLIC_LIST_LIMIT = 100;
+const PUBLIC_LIST_LIMIT = 5000;
 
 export default function DigitalIDScreen() {
   const router = useRouter();
@@ -371,6 +371,10 @@ export default function DigitalIDScreen() {
               contentContainerStyle={styles.resultsList}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
+              initialNumToRender={15}
+              maxToRenderPerBatch={20}
+              updateCellsBatchingPeriod={50}
+              windowSize={5}
               ListEmptyComponent={
                 showEmptyState ? (
                   <View style={styles.emptyStateCard}>
