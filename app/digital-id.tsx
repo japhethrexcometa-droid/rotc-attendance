@@ -53,8 +53,6 @@ export default function DigitalIDScreen() {
   const [cadetData, setCadetData] = useState<CadetIDData | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [publicUploadIdNumber, setPublicUploadIdNumber] = useState("");
-  const [publicUploadPassword, setPublicUploadPassword] = useState("");
   const [publicUploadError, setPublicUploadError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,16 +193,7 @@ export default function DigitalIDScreen() {
         await Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         );
-        if (mode === "public") {
-          const idNumber = publicUploadIdNumber.trim();
-          const password = publicUploadPassword.trim();
-          if (!idNumber || !password) {
-            throw new Error("Please enter your ID number and password to upload a photo.");
-          }
-          await uploadPhotoWithCredentials(activeCadet.id, idNumber, password, uri);
-        } else {
-          await uploadPhoto(activeCadet.id, uri);
-        }
+        await uploadPhoto(activeCadet.id, uri);
       } catch (error) {
         console.error("Upload error:", error);
         const message =
@@ -232,13 +221,23 @@ export default function DigitalIDScreen() {
       const uri = await captureRef(viewShotRef.current, {
         format: "png",
         quality: 1,
-        result: "tmpfile",
+        result: Platform.OS === "web" ? "data-uri" : "tmpfile",
         width: Math.round(ID_WIDTH * PixelRatio.get() * CAPTURE_SCALE),
         height: Math.round(ID_HEIGHT * PixelRatio.get() * CAPTURE_SCALE),
       });
 
-      await Sharing.shareAsync(uri);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS === "web") {
+        const link = document.createElement("a");
+        link.href = uri;
+        link.download = `rotc-id-${displayCadet?.id_number || "card"}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } else {
+        await Sharing.shareAsync(uri);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch {
       Alert.alert("Error", "Could not save ID card.");
     }
@@ -437,33 +436,14 @@ export default function DigitalIDScreen() {
 
           {mode === "public" ? (
             <View style={styles.publicUploadCard}>
-              <Text style={styles.publicUploadTitle}>Upload your photo (optional)</Text>
+              <Text style={styles.publicUploadTitle}>Upload cadet photo</Text>
               <Text style={styles.publicUploadSub}>
-                To prevent other people from editing your ID, verify using your ROTC account details.
+                Click the avatar icon below to assign a photo to this ID card.
               </Text>
-              <TextInput
-                style={styles.publicUploadInput}
-                placeholder="Your ID Number (e.g. 2025-0001)"
-                placeholderTextColor="#A0B3A6"
-                value={publicUploadIdNumber}
-                onChangeText={setPublicUploadIdNumber}
-                autoCapitalize="characters"
-              />
-              <TextInput
-                style={styles.publicUploadInput}
-                placeholder="Password (e.g. ROTC0001)"
-                placeholderTextColor="#A0B3A6"
-                value={publicUploadPassword}
-                onChangeText={setPublicUploadPassword}
-                secureTextEntry
-                autoCapitalize="characters"
-              />
+              
               {publicUploadError ? (
                 <Text style={styles.publicUploadError}>{publicUploadError}</Text>
               ) : null}
-              <Text style={styles.publicUploadHint}>
-                Tip: default password is <Text style={{ fontWeight: "900" }}>ROTC + last 4 digits</Text> of your ID number.
-              </Text>
             </View>
           ) : null}
 
