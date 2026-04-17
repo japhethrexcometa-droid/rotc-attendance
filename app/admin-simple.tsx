@@ -495,8 +495,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
+    justifyContent: "space-between",
   },
   headerLogoCircle: {
     width: 48,
