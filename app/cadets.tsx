@@ -411,6 +411,10 @@ export default function CadetRegistry() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
+            initialNumToRender={20}
+            maxToRenderPerBatch={30}
+            updateCellsBatchingPeriod={50}
+            windowSize={5}
             ListEmptyComponent={
               <View style={styles.emptyBox}>
                 <Filter color="#CCC" size={40} />

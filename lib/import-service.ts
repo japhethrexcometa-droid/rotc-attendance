@@ -198,7 +198,7 @@ export async function parseExcel(
   mode: ImportMode = "cadet",
 ): Promise<{ rows: (CadetExcelRow | OfficerExcelRow)[]; errors: string[] }> {
   const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB safety limit
-  const MAX_ROWS = 1000; // aligned with target batch range
+  const MAX_ROWS = 5000; // aligned with target batch range to support thousands of cadets
 
   if (Platform.OS !== "web") {
     const fileInfo = await FileSystem.getInfoAsync(asset.uri);
@@ -359,7 +359,7 @@ export async function generateCredentials(
     full_name: fullName,
     platoon,
     year_level: yearLevel,
-    gender: normalizeCadetText(row["Gender"]).toUpperCase() || null,
+    gender: normalizeCadetText(row["Gender"]).charAt(0).toUpperCase() + normalizeCadetText(row["Gender"]).slice(1).toLowerCase() || null,
     school: normalizeCadetText(row["School"]) || null,
     role: "cadet",
     password_hash,
