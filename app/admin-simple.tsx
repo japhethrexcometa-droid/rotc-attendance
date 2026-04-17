@@ -112,7 +112,7 @@ export default function CommanderDashboard() {
         }
         setSession(userSession);
 
-        // Fetch basic stats
+        // Fetch basic stats with an artificial delay so the premium loading animation finishes fully
         const todayStr = new Date().toISOString().split("T")[0];
         const [cadetsCount, attendanceCount, sessionsCount] = await Promise.all(
           [
@@ -129,6 +129,7 @@ export default function CommanderDashboard() {
               .from("sessions")
               .select("id", { count: "exact", head: true })
               .eq("status", "OPEN"),
+            new Promise(res => setTimeout(res, 2000)) // Force minimum 2 second loading!
           ],
         );
 

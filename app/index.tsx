@@ -51,10 +51,14 @@ export default function LoginScreen() {
 
   useEffect(() => {
     (async () => {
+      const minLoadTime = new Promise(resolve => setTimeout(resolve, 2000));
+
       await loadFieldModePreference();
       setFieldStrict(isFieldModeStrictSync());
 
       const session = await getSession();
+      await minLoadTime;
+
       if (session) {
         router.replace(routeForRole(session.role) as any);
         return;
