@@ -410,6 +410,9 @@ export async function batchInsertOnly(
   };
 
   for (let i = 0; i < users.length; i += batchSize) {
+    // Yield the event loop to ensure UI (e.g. loader animations) remains smooth for large batches
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     const chunk = users.slice(i, i + batchSize);
     const idNumbers = chunk.map((c) => c.id_number);
 
@@ -476,12 +479,27 @@ export async function importFromParsedRows(
   rows: (CadetExcelRow | OfficerExcelRow)[],
   mode: ImportMode = "cadet",
 ): Promise<ImportResult> {
-  const credentials =
-    mode === "cadet"
-      ? await Promise.all((rows as CadetExcelRow[]).map(generateCredentials))
-      : await Promise.all(
-          (rows as OfficerExcelRow[]).map(generateOfficerCredentials),
-        );
+  const credentials: UserImportCredentials[] = [];
+  const BATCH_SIZE = 100;
+
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const chunk = rows.slice(i, i + BATCH_SIZE);
+    
+    // Yield the event loop to keep the system extremely smooth for hundreds of rows
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    if (mode === "cadet") {
+      const generated = await Promise.all(
+        (chunk as CadetExcelRow[]).map(generateCredentials)
+      );
+      credentials.push(...generated);
+    } else {
+      const generated = await Promise.all(
+        (chunk as OfficerExcelRow[]).map(generateOfficerCredentials)
+      );
+      credentials.push(...generated);
+    }
+  }
 
   const result = await batchInsertOnly(credentials);
   return result;
