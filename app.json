@@ -1,24 +1,24 @@
 {
   "expo": {
-    "name": "rotc",
-    "slug": "rotc",
+    "name": "MSU-ZS ROTC Attendance",
+    "slug": "rotc-mszs",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "rotc",
+    "icon": "./assets/images/batch-logo.png",
+    "scheme": "rotcmszs",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "edu.msu.zs.rotc.attendance"
     },
     "android": {
+      "package": "edu.msu.zs.rotc.attendance",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1F3D2B",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -30,19 +30,24 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/batch-logo.png",
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#1F3D2B",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#1F3D2B"
           }
         }
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4eb3085b-243a-41f0-aa41-850d1f41ca9d"
+      }
     }
   }
 }
