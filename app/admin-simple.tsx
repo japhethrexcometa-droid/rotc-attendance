@@ -129,7 +129,7 @@ export default function CommanderDashboard() {
               .from("sessions")
               .select("id", { count: "exact", head: true })
               .eq("status", "OPEN"),
-            new Promise(res => setTimeout(res, 2000)) // Force minimum 2 second loading!
+            new Promise(res => setTimeout(res, 3500)) // Force minimum 3.5 second loading!
           ],
         );
 

@@ -118,7 +118,7 @@ export default function CadetDashboard() {
           loadHistory(s.id),
           loadFormationHistory(s.id),
           loadAnnouncements(),
-          new Promise(res => setTimeout(res, 2000)), // Allow WowLoading animation to finish
+          new Promise(res => setTimeout(res, 3500)), // Allow WowLoading animation to finish
         ]);
       } catch (err) {
         console.error("Load error:", err);

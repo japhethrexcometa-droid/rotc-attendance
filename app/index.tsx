@@ -51,7 +51,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     (async () => {
-      const minLoadTime = new Promise(resolve => setTimeout(resolve, 2000));
+      const minLoadTime = new Promise(resolve => setTimeout(resolve, 3500));
 
       await loadFieldModePreference();
       setFieldStrict(isFieldModeStrictSync());
