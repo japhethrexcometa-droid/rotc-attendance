@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import ScannerView from "../components/ScannerView";
 import { logout, UserSession } from "../lib/auth";
+import { confirmAction } from "../lib/web-utils";
 import { requireRole } from "../lib/authz";
 import {
   autoCloseExpiredSessions,
@@ -88,17 +89,11 @@ export default function OfficerDashboard() {
   }, [router]);
 
   const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to end your session?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          router.replace("/");
-        },
-      },
-    ]);
+    const confirm = await confirmAction("Logout", "Are you sure you want to end your session?");
+    if (confirm) {
+      await logout();
+      router.replace("/");
+    }
   };
 
   if (loading) {

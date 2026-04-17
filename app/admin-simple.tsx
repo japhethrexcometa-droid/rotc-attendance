@@ -75,7 +75,6 @@ export default function CommanderDashboard() {
     presentToday: 0,
     activeSessions: 0,
   });
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [fieldBanner, setFieldBanner] = useState(false);
   const [netOnline, setNetOnline] = useState<boolean | null>(null);
   const portalLink = getDigitalIdPortalLink();
@@ -143,15 +142,13 @@ export default function CommanderDashboard() {
     loadDashboardData();
   }, [router]);
 
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const executeLogout = async () => {
-    setShowLogoutConfirm(false);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await logout();
-    router.replace("/");
+  const handleLogoutClick = async () => {
+    const confirmed = await confirmAction("Confirm Logout", "Are you sure you want to end your session?");
+    if (confirmed) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await logout();
+      router.replace("/");
+    }
   };
 
   const handleAction = (route: string) => {
@@ -419,32 +416,6 @@ export default function CommanderDashboard() {
           </View>
         </ScrollView>
       </View>
-
-      {/* Logout Auto-Modal for Web Reliability */}
-      <Modal visible={showLogoutConfirm} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Confirm Logout</Text>
-            <Text style={styles.modalSub}>
-              Are you sure you want to end your session?
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setShowLogoutConfirm(false)}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmBtn}
-                onPress={executeLogout}
-              >
-                <Text style={styles.confirmText}>Logout</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

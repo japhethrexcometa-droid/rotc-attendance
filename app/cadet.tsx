@@ -23,6 +23,7 @@ import {
 } from "react-native";
 import { logout, type UserSession } from "../lib/auth";
 import { requireRole } from "../lib/authz";
+import { confirmAction } from "../lib/web-utils";
 import { getCadetStanding } from "../lib/reports-service";
 import { supabase } from "../lib/supabase";
 
@@ -232,21 +233,11 @@ export default function CadetDashboard() {
   }
 
   async function handleLogout() {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to end your session?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
-          style: "destructive", 
-          onPress: async () => {
-            await logout();
-            router.replace("/");
-          } 
-        }
-      ]
-    );
+    const confirm = await confirmAction("Logout", "Are you sure you want to end your session?");
+    if (confirm) {
+      await logout();
+      router.replace("/");
+    }
   }
 
   if (loading) {
