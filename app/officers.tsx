@@ -23,7 +23,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Modal,
 } from "react-native";
 import { hashPassword } from "../lib/auth";
 import { requireRole } from "../lib/authz";

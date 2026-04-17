@@ -489,7 +489,8 @@ export default function DigitalIDScreen() {
             </View>
           ) : null}
 
-          <ViewShot ref={viewShotRef} id="printable-card" style={styles.idCardContainer}>
+          <ViewShot ref={viewShotRef} style={styles.idCardContainer}>
+            <View id="printable-card" style={{ flex: 1 }}>
             <View style={styles.idCard}>
               <LinearGradient
                 colors={["rgba(255,255,255,0.15)", "rgba(255,255,255,0)"]}
@@ -639,6 +640,7 @@ export default function DigitalIDScreen() {
                   OFFICIAL ROTC DIGITAL IDENTIFICATION
                 </Text>
               </View>
+            </View>
             </View>
           </ViewShot>
 

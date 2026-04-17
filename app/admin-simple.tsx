@@ -686,4 +686,52 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 4,
   },
+
+  // Logout confirm modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#1F3D2B",
+    marginBottom: 6,
+  },
+  modalSub: {
+    fontSize: 13,
+    color: "#6E7A71",
+    marginBottom: 16,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  cancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  cancelText: {
+    color: "#6E7A71",
+    fontWeight: "700",
+  },
+  confirmBtn: {
+    backgroundColor: "#A52A2A",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignItems: "center",
+  },
+  confirmText: {
+    color: "#FFF",
+    fontWeight: "800",
+  },
 });
