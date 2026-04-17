@@ -32,6 +32,7 @@ import {
 } from "../lib/field-mode";
 import { autoMarkAbsents } from "../lib/session-manager";
 import { supabase } from "../lib/supabase";
+import { downloadFileWeb } from "../lib/web-utils";
 
 type AttendanceStatus = "present" | "late" | "absent" | "excused";
 
@@ -688,12 +689,21 @@ export default function DutyReports() {
 
       // Note: this export is Excel 2003 XML. Using .xml avoids Excel "file format doesn't match extension" warnings.
       const fileName = `ROTC_Attendance_${Date.now()}.xml`;
-      const fileUri =
-        ((FileSystem as any).documentDirectory ||
-          (FileSystem as any).cacheDirectory ||
-          "") + fileName;
-      await FileSystem.writeAsStringAsync(fileUri, xmlContent);
-      await Sharing.shareAsync(fileUri);
+
+      if (Platform.OS === "web") {
+        downloadFileWeb(fileName, xmlContent);
+      } else {
+        const fileUri =
+          ((FileSystem as any).documentDirectory ||
+            (FileSystem as any).cacheDirectory ||
+            "") + fileName;
+        await FileSystem.writeAsStringAsync(fileUri, xmlContent);
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri);
+        } else {
+          Alert.alert("Export complete", `Saved to: ${fileUri}`);
+        }
+      }
 
       if (currentUser?.role === "admin") {
         setConfirmProp({
