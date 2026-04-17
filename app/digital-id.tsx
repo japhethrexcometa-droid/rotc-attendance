@@ -20,6 +20,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -55,6 +56,9 @@ export default function DigitalIDScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [publicUploadError, setPublicUploadError] = useState<string | null>(null);
   const [showMessengerBanner, setShowMessengerBanner] = useState(false);
+  
+  const [uploadPasswordTarget, setUploadPasswordTarget] = useState<{ uri: string; error?: string } | null>(null);
+  const [uploadPasswordInput, setUploadPasswordInput] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [publicCadets, setPublicCadets] = useState<CadetIDData[]>([]);
@@ -188,6 +192,13 @@ export default function DigitalIDScreen() {
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
+      
+      if (mode === "public") {
+        setUploadPasswordTarget({ uri });
+        setUploadPasswordInput("");
+        return;
+      }
+      
       setPhotoUri(uri);
       setIsUploading(true);
       try {
@@ -201,11 +212,7 @@ export default function DigitalIDScreen() {
           error instanceof Error
             ? error.message
             : "Could not save photo to server, but it will show locally.";
-        if (mode === "public") {
-          setPublicUploadError(message);
-        } else {
-          Alert.alert("Upload Failed", message);
-        }
+        Alert.alert("Upload Failed", message);
       } finally {
         setIsUploading(false);
       }
@@ -680,9 +687,157 @@ export default function DigitalIDScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Password Prompt Modal for Unauthenticated Photo Uploads */}
+      <Modal visible={!!uploadPasswordTarget} transparent animationType="fade">
+        <View style={localStyles.modalOverlay}>
+          <View style={localStyles.modalContent}>
+             <Text style={localStyles.modalTitle}>Verify Your Identity</Text>
+             <Text style={localStyles.modalDesc}>
+               Please enter your ROTC Account password to confirm it's really you uploading this photo.
+             </Text>
+             
+             {uploadPasswordTarget?.error ? (
+               <Text style={localStyles.modalError}>{uploadPasswordTarget.error}</Text>
+             ) : null}
+
+             <TextInput
+                style={localStyles.modalInput}
+                placeholder="Enter password..."
+                placeholderTextColor="#A0B3A6"
+                secureTextEntry
+                autoCapitalize="none"
+                value={uploadPasswordInput}
+                onChangeText={setUploadPasswordInput}
+             />
+
+             <View style={localStyles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[localStyles.modalBtnAlt, { flex: 1, marginRight: 8 }]}
+                  onPress={() => setUploadPasswordTarget(null)}
+                  disabled={isUploading}
+                >
+                  <Text style={localStyles.modalBtnTextAlt}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[localStyles.modalBtnMain, { flex: 1 }]}
+                  disabled={!uploadPasswordInput.trim() || isUploading}
+                  onPress={async () => {
+                    const activeCadet = selectedCadet;
+                    if (!activeCadet || !uploadPasswordTarget) return;
+                    
+                    setIsUploading(true);
+                    setUploadPasswordTarget({ ...uploadPasswordTarget, error: undefined });
+                    
+                    try {
+                      await uploadPhotoWithCredentials(
+                        activeCadet.id,
+                        activeCadet.id_number,
+                        uploadPasswordInput,
+                        uploadPasswordTarget.uri
+                      );
+                      setPhotoUri(uploadPasswordTarget.uri);
+                      setUploadPasswordTarget(null);
+                      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    } catch (err: any) {
+                      setUploadPasswordTarget({
+                        ...uploadPasswordTarget,
+                        error: err.message || "Failed to upload photo. Please check password."
+                      });
+                    } finally {
+                      setIsUploading(false);
+                    }
+                  }}
+                >
+                   {isUploading ? (
+                     <ActivityIndicator color="#FFF" size="small" />
+                   ) : (
+                     <Text style={localStyles.modalBtnTextMain}>Confirm Upload</Text>
+                   )}
+                </TouchableOpacity>
+             </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+const localStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#1F3D2B",
+    marginBottom: 6,
+  },
+  modalDesc: {
+    fontSize: 14,
+    color: "#6E7A71",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  modalError: {
+    padding: 12,
+    backgroundColor: "#FFE5E5",
+    color: "#D32F2F",
+    borderRadius: 8,
+    marginBottom: 16,
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  modalInput: {
+    backgroundColor: "#F8F9F7",
+    borderWidth: 1,
+    borderColor: "#EAECE6",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    color: "#111",
+    marginBottom: 20,
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  modalBtnAlt: {
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "#F0F4F1",
+    alignItems: "center",
+  },
+  modalBtnTextAlt: {
+    color: "#4A5D4E",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  modalBtnMain: {
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "#1F3D2B",
+    alignItems: "center",
+  },
+  modalBtnTextMain: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+});
 
 const styles = StyleSheet.create({
   safeArea: {
