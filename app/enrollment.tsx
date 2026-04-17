@@ -8,7 +8,6 @@ import * as Sharing from "expo-sharing";
 import { ArrowLeft, FileSpreadsheet, Upload, CheckCircle2, Info } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import {
   View,
   Alert,
   Platform,
+  Modal,
 } from "react-native";
 import { alertRemoteFailure } from "../lib/field-mode";
 import { requireRole } from "../lib/authz";
@@ -42,6 +42,13 @@ export default function BulkEnrollment() {
     errors: 0,
     credentials: 0,
   });
+  const [successModal, setSuccessModal] = useState<{
+    inserted: number;
+    skipped: number;
+    errors: number;
+    officerSummary: string;
+    credentialsReport: any[];
+  } | null>(null);
 
   const formatOfficerRoleSummary = (
     rows: any[],
@@ -200,62 +207,13 @@ export default function BulkEnrollment() {
       }
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        "Success",
-        `${importMode === "cadet" ? "Cadet" : "Officer"} import complete.\nInserted: ${result.inserted}\nSkipped duplicates: ${result.skipped}\nErrors: ${result.errors.length}${importMode === "officer" ? `\n\nPosition/Role Summary (Inserted):\n${officerSummary}` : ""}`,
-        [
-          ...(importMode === "officer"
-            ? [
-                {
-                  text: "Copy Summary",
-                  onPress: async () => {
-                    try {
-                      const summaryText = [
-                        "ROTC Officer Import Summary",
-                        `Inserted: ${result.inserted}`,
-                        `Skipped duplicates: ${result.skipped}`,
-                        `Errors: ${result.errors.length}`,
-                        `Credentials generated: ${result.credentialsReport.length}`,
-                        `Digital IDs ready: ${result.inserted}`,
-                        "",
-                        "Position/Role Summary (Inserted):",
-                        officerSummary || "No new officer records inserted.",
-                      ].join("\n");
-                      await Clipboard.setStringAsync(summaryText);
-                      Alert.alert("Copied", "Officer summary copied to clipboard.");
-                    } catch (err: any) {
-                      alertRemoteFailure(
-                        "Copy Failed",
-                        err?.message || "Could not copy summary.",
-                      );
-                    }
-                  },
-                },
-              ]
-            : []),
-          {
-            text: "Download Credentials",
-            onPress: async () => {
-              try {
-                await exportCredentialsCsv(result.credentialsReport);
-              } catch (err: any) {
-                alertRemoteFailure(
-                  "Export Failed",
-                  err?.message || "Could not export credentials report.",
-                );
-              } finally {
-                router.back();
-              }
-            },
-          },
-          {
-            text: importMode === "officer" ? "Open Officer Dashboard" : "Skip",
-            onPress: () =>
-              importMode === "officer" ? router.replace("/officer") : router.back(),
-            style: "cancel",
-          },
-        ],
-      );
+      setSuccessModal({
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors: result.errors.length,
+        officerSummary,
+        credentialsReport: result.credentialsReport,
+      });
     } catch (error: any) {
       console.error(error);
       alertRemoteFailure(
@@ -442,6 +400,95 @@ export default function BulkEnrollment() {
           </View>
         )}
       </ScrollView>
+
+      {/* SUCCESS MODAL FOR WEB COMPATIBILITY */}
+      <Modal
+        visible={successModal !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSuccessModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <CheckCircle2 color="#4CAF50" size={32} />
+              <Text style={styles.modalTitle}>Import Successful</Text>
+            </View>
+            <Text style={styles.modalText}>
+              {importMode === "cadet" ? "Cadet" : "Officer"} import complete.
+            </Text>
+            <View style={styles.statsBox}>
+              <Text style={styles.statLine}>✓ Inserted: {successModal?.inserted}</Text>
+              <Text style={styles.statLine}>⚠ Skipped: {successModal?.skipped}</Text>
+              <Text style={styles.statLine}>✕ Errors: {successModal?.errors}</Text>
+            </View>
+            
+            {importMode === "officer" && successModal?.officerSummary ? (
+              <View style={styles.statsBox}>
+                <Text style={styles.statLineHeader}>Position/Role Summary:</Text>
+                <Text style={styles.statLine}>{successModal.officerSummary}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.modalBtnRow}>
+              {importMode === "officer" && (
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnAlt]}
+                  onPress={async () => {
+                    if (!successModal) return;
+                    try {
+                      const summaryText = [
+                        "ROTC Officer Import Summary",
+                        `Inserted: ${successModal.inserted}`,
+                        `Skipped duplicates: ${successModal.skipped}`,
+                        `Errors: ${successModal.errors}`,
+                        `Credentials generated: ${successModal.credentialsReport.length}`,
+                        "",
+                        "Position/Role Summary (Inserted):",
+                        successModal.officerSummary || "No new officer records.",
+                      ].join("\n");
+                      await Clipboard.setStringAsync(summaryText);
+                      Alert.alert("Copied", "Summary copied to clipboard.");
+                    } catch (err) {
+                      console.error(err);
+                    }
+                  }}
+                >
+                  <Text style={styles.modalBtnTextAlt}>Copy Summary</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalBtnMain}
+              onPress={async () => {
+                try {
+                  if (successModal?.credentialsReport) {
+                    await exportCredentialsCsv(successModal.credentialsReport);
+                  }
+                } catch (err: any) {
+                  alertRemoteFailure("Export Failed", err?.message);
+                } finally {
+                  setSuccessModal(null);
+                  importMode === "officer" ? router.replace("/officer") : router.back();
+                }
+              }}
+            >
+              <Text style={styles.modalBtnTextMain}>Download Credentials</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalBtnClose}
+              onPress={() => {
+                setSuccessModal(null);
+                importMode === "officer" ? router.replace("/officer") : router.back();
+              }}
+            >
+              <Text style={styles.modalBtnTextClose}>Skip & Continue</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -584,4 +631,93 @@ const styles = StyleSheet.create({
   },
   enrollBtnText: { color: "#FFF", fontWeight: "900", fontSize: 14, letterSpacing: 1 },
   disabled: { opacity: 0.6 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#1F3D2B",
+    marginTop: 12,
+  },
+  modalText: {
+    fontSize: 14,
+    color: "#4A5D4E",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  statsBox: {
+    backgroundColor: "#F0F4F1",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  statLine: {
+    fontSize: 13,
+    color: "#2C533A",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  statLineHeader: {
+    fontSize: 12,
+    color: "#1F3D2B",
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    borderRadius: 12,
+    alignItems: "center",
+    padding: 14,
+  },
+  modalBtnAlt: {
+    backgroundColor: "#EAECE6",
+  },
+  modalBtnTextAlt: {
+    color: "#1F3D2B",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  modalBtnMain: {
+    backgroundColor: "#1F3D2B",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  modalBtnTextMain: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  modalBtnClose: {
+    padding: 12,
+    alignItems: "center",
+  },
+  modalBtnTextClose: {
+    color: "#777",
+    fontSize: 13,
+    fontWeight: "600",
+  },
 });
