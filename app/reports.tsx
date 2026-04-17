@@ -1439,6 +1439,28 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontSize: 12,
   },
+  downloadBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    backgroundColor: "#F4F7F5",
+    borderRadius: 16,
+    marginVertical: 16,
+  },
+  downloadFileName: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#1F3D2B",
+    marginTop: 12,
+    textAlign: "center",
+  },
+  downloadHint: {
+    fontSize: 11,
+    color: "#6E7A71",
+    textAlign: "center",
+    marginTop: 8,
+    paddingHorizontal: 16,
+  },
   modalActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
