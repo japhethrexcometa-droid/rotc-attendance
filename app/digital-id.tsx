@@ -216,31 +216,27 @@ export default function DigitalIDScreen() {
 
   const handleDownload = async () => {
     try {
+      if (Platform.OS === "web") {
+        // Special Web Fallback: Use native browser print for maximum reliability
+        // We trigger the print dialog which allows "Save as PDF" or "Print"
+        window.print();
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        return;
+      }
+
       if (!viewShotRef.current) return;
 
-      // Render at higher scale to avoid blurry exports on physical devices.
-      // (The on-screen card remains the same size; this only affects the capture.)
       const CAPTURE_SCALE = 4;
       const uri = await captureRef(viewShotRef.current, {
         format: "png",
         quality: 1,
-        result: Platform.OS === "web" ? "data-uri" : "tmpfile",
+        result: "tmpfile",
         width: Math.round(ID_WIDTH * PixelRatio.get() * CAPTURE_SCALE),
         height: Math.round(ID_HEIGHT * PixelRatio.get() * CAPTURE_SCALE),
       });
 
-      if (Platform.OS === "web") {
-        const link = document.createElement("a");
-        link.href = uri;
-        link.download = `rotc-id-${displayCadet?.id_number || "card"}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      } else {
-        await Sharing.shareAsync(uri);
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+      await Sharing.shareAsync(uri);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       Alert.alert("Error", "Could not save ID card.");
     }
@@ -1128,4 +1124,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   shareBtnText: { color: "#1F3D2B", fontWeight: "800", fontSize: 15 },
+  "@media print": {
+    safeArea: { backgroundColor: "#FFF", paddingTop: 0 },
+    header: { display: "none" },
+    instruction: { display: "none" },
+    publicUploadCard: { display: "none" },
+    downloadBtn: { display: "none" },
+    shareBtn: { display: "none" },
+    cardScrollContent: { padding: 0 },
+    container: { padding: 0 },
+    idCardContainer: { transform: [{ scale: 1.2 }], marginTop: 50 },
+  },
 });
