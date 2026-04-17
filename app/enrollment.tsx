@@ -47,8 +47,17 @@ export default function BulkEnrollment() {
     inserted: number;
     skipped: number;
     errors: number;
+    errorMessages: string[];
     officerSummary: string;
     credentialsReport: any[];
+  } | null>(null);
+  const [parseErrors, setParseErrors] = useState<string[]>([]);
+  const [confirmProp, setConfirmProp] = useState<{
+    title: string;
+    message: string;
+    confirmText?: string;
+    danger?: boolean;
+    onConfirm?: () => void;
   } | null>(null);
 
   const formatOfficerRoleSummary = (
@@ -87,6 +96,11 @@ export default function BulkEnrollment() {
 
       if (Platform.OS === "web") {
         downloadFileWeb(filename, content);
+        setConfirmProp({
+          title: "Template Ready",
+          message: "The import template has been downloaded. You can now fill it out and upload it.",
+          confirmText: "Got it"
+        });
         return;
       }
 
@@ -105,10 +119,18 @@ export default function BulkEnrollment() {
           UTI: "public.comma-separated-values-text",
         });
       } else {
-        Alert.alert("Template Ready", filePath);
+        setConfirmProp({
+          title: "Template Ready",
+          message: `The template has been saved to:\n${filePath}`,
+          confirmText: "Got it"
+        });
       }
     } catch (error: any) {
-      Alert.alert("Template Error", error?.message || "Could not generate template.");
+      setConfirmProp({
+        title: "Template Error",
+        message: error?.message || "Could not generate template.",
+        confirmText: "Close"
+      });
     }
   };
 
@@ -141,14 +163,26 @@ export default function BulkEnrollment() {
     const fs = FileSystem as any;
     const filePath = `${fs.cacheDirectory}${filename}`;
     await FileSystem.writeAsStringAsync(filePath, csvContent, { encoding: fs.EncodingType.UTF8 });
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(filePath, {
-        mimeType: "text/csv",
-        dialogTitle: "Share Cadet Credentials Report",
-        UTI: "public.comma-separated-values-text",
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filePath, {
+          mimeType: "text/csv",
+          dialogTitle: "Share Cadet Credentials Report",
+          UTI: "public.comma-separated-values-text",
+        });
+      } else {
+        setConfirmProp({
+          title: "Saved",
+          message: `Credentials report saved at:\n${filePath}`,
+          confirmText: "Got it"
+        });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setConfirmProp({
+        title: "Export Failed",
+        message: "Failed to download credentials report",
+        confirmText: "Close"
       });
-    } else {
-      Alert.alert("Saved", `Credentials report saved at:\n${filePath}`);
     }
   };
 
@@ -166,19 +200,25 @@ export default function BulkEnrollment() {
       if (result.canceled) return;
 
       setLoading(true);
+      setParseErrors([]);
       const file = result.assets[0];
       setFileName(file.name);
       setFileUri(file.uri);
 
       const { rows, errors } = await parseExcel(file, importMode);
       if (errors.length > 0) {
-        Alert.alert("Validation Notes", errors.slice(0, 5).join("\n"));
+        setParseErrors(errors);
       }
       setParsedData(rows as any[]);
       setLoading(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      Alert.alert("Error", "Could not process document.");
+      setConfirmProp({
+        title: "Error",
+        message: error?.message || "Could not process document.",
+        confirmText: "Close",
+        danger: true
+      });
       setLoading(false);
     }
   };
@@ -207,11 +247,11 @@ export default function BulkEnrollment() {
         });
       }
 
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccessModal({
         inserted: result.inserted,
         skipped: result.skipped,
         errors: result.errors.length,
+        errorMessages: result.errors,
         officerSummary,
         credentialsReport: result.credentialsReport,
       });
@@ -264,7 +304,11 @@ export default function BulkEnrollment() {
                       lastOfficerSummary,
                     ].join("\n"),
                   );
-                  Alert.alert("Copied", "Summary copied to clipboard.");
+                  setConfirmProp({
+                    title: "Copied!",
+                    message: "Summary copied to clipboard successfully.",
+                    confirmText: "Awesome",
+                  });
                 } catch (err: any) {
                   alertRemoteFailure(
                     "Copy Failed",
@@ -356,6 +400,21 @@ export default function BulkEnrollment() {
           </View>
         ) : (
           <View style={styles.previewSection}>
+            {/* Dynamic Display of Validation Errors inside Document Parsing */}
+            {parseErrors.length > 0 && (
+              <View style={[styles.statsBox, { backgroundColor: "#FFF0F0", borderColor: "#F7D6D6", borderWidth: 1, marginBottom: 20 }]}>
+                <Text style={[styles.statLineHeader, { color: "#A52A2A" }]}>Validation Log ({parseErrors.length})</Text>
+                {parseErrors.slice(0, 5).map((err, idx) => (
+                  <Text key={idx} style={{ fontSize: 11, color: "#8B0000", marginBottom: 2 }}>• {err}</Text>
+                ))}
+                {parseErrors.length > 5 && (
+                  <Text style={{ fontSize: 11, color: "#8B0000", fontStyle: "italic", marginTop: 4 }}>
+                    ...and {parseErrors.length - 5} more issues.
+                  </Text>
+                )}
+              </View>
+            )}
+
             <View style={styles.fileLabel}>
               <FileSpreadsheet color="#1F3D2B" size={20} />
               <Text style={styles.fileName}>{fileName}</Text>
@@ -424,6 +483,20 @@ export default function BulkEnrollment() {
               <Text style={styles.statLine}>✕ Errors: {successModal?.errors}</Text>
             </View>
             
+            {successModal && successModal.errors > 0 && successModal.errorMessages && (
+              <View style={[styles.statsBox, { backgroundColor: "#FFF0F0" }]}>
+                <Text style={[styles.statLineHeader, { color: "#A52A2A" }]}>Issues Found:</Text>
+                {successModal.errorMessages.slice(0, 4).map((err, idx) => (
+                  <Text key={idx} style={{ fontSize: 11, color: "#8B0000", marginBottom: 2 }}>• {err}</Text>
+                ))}
+                {successModal.errorMessages.length > 4 && (
+                  <Text style={{ fontSize: 11, color: "#8B0000", fontStyle: "italic", marginTop: 4 }}>
+                    ...and {successModal.errorMessages.length - 4} more skipped.
+                  </Text>
+                )}
+              </View>
+            )}
+
             {importMode === "officer" && successModal?.officerSummary ? (
               <View style={styles.statsBox}>
                 <Text style={styles.statLineHeader}>Position/Role Summary:</Text>
@@ -449,7 +522,7 @@ export default function BulkEnrollment() {
                         successModal.officerSummary || "No new officer records.",
                       ].join("\n");
                       await Clipboard.setStringAsync(summaryText);
-                      Alert.alert("Copied", "Summary copied to clipboard.");
+                      setConfirmProp({ title: "Copied!", message: "Summary copied to clipboard", confirmText: "Awesome", onConfirm: () => {} });
                     } catch (err) {
                       console.error(err);
                     }
@@ -487,6 +560,35 @@ export default function BulkEnrollment() {
             >
               <Text style={styles.modalBtnTextClose}>Skip & Continue</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Web-Reliable Confirm/Alert Modal for errors/warnings */}
+      <Modal visible={!!confirmProp} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+             <Text style={styles.modalTitle}>{confirmProp?.title}</Text>
+             <Text style={[styles.modalText, { marginTop: 10, marginBottom: 20 }]}>{confirmProp?.message}</Text>
+             <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+               {confirmProp?.danger && (
+                 <TouchableOpacity
+                   style={[styles.modalBtnAlt, { flex: 1, padding: 12, marginRight: 10 }]}
+                   onPress={() => setConfirmProp(null)}
+                 >
+                   <Text style={[styles.modalBtnTextAlt, { textAlign: "center" }]}>Cancel</Text>
+                 </TouchableOpacity>
+               )}
+               <TouchableOpacity
+                 style={[styles.modalBtnMain, { flex: 1, padding: 12 }]}
+                 onPress={() => {
+                   if (confirmProp?.onConfirm) confirmProp.onConfirm();
+                   setConfirmProp(null);
+                 }}
+               >
+                 <Text style={[styles.modalBtnTextMain, { textAlign: "center" }]}>{confirmProp?.confirmText || "OK"}</Text>
+               </TouchableOpacity>
+             </View>
           </View>
         </View>
       </Modal>
