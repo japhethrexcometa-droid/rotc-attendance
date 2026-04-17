@@ -65,13 +65,13 @@ export default function CadetRegistry() {
     school: "",
   });
 
-  // Web-Safe Confirm Modal State
   const [confirmProp, setConfirmProp] = useState<{
     title: string;
     message: string;
-    onConfirm: () => void;
+    onConfirm?: () => void;
     confirmText: string;
-    danger: boolean;
+    danger?: boolean;
+    hideCancel?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -201,11 +201,11 @@ export default function CadetRegistry() {
 
   const handleAddCadet = async () => {
     if (currentUser?.role !== "admin") {
-      Alert.alert("Not allowed", "Only Admin can add cadets.");
+      setConfirmProp({ title: "Not allowed", message: "Only Admin can add cadets.", confirmText: "OK", hideCancel: true });
       return;
     }
     if (!newCadet.idNumber.trim() || !newCadet.fullName.trim()) {
-      Alert.alert("Validation", "ID Number and Full Name are required.");
+      setConfirmProp({ title: "Validation Error", message: "ID Number and Full Name are required.", confirmText: "OK", hideCancel: true });
       return;
     }
     try {
@@ -234,29 +234,28 @@ export default function CadetRegistry() {
 
       if (error) {
         if (error.code === "42501") {
-          alertRemoteFailure(
-            "Cannot add cadet",
-            "Database policy blocked this insert. Check connection or server setup.",
-          );
+          setConfirmProp({ title: "Cannot add cadet", message: "Database policy blocked this insert. Check connection or server setup.", confirmText: "OK", hideCancel: true });
           return;
         }
         if (error.code === "23505") {
-          Alert.alert("Duplicate", "ID Number already exists.");
+          setConfirmProp({ title: "Duplicate", message: "ID Number already exists.", confirmText: "OK", hideCancel: true });
         } else if (
           shouldSilenceRemoteFailureAlerts() ||
           isLikelyNetworkErrorMessage(error.message)
         ) {
           alertRemoteFailure("Cannot add cadet", error.message);
         } else {
-          Alert.alert("Error", error.message);
+          setConfirmProp({ title: "Error", message: error.message, confirmText: "OK", hideCancel: true });
         }
         return;
       }
 
-      Alert.alert(
-        "Cadet Added",
-        `Cadet created successfully.\nDefault Password: ${defaultPassword}`,
-      );
+      setConfirmProp({
+        title: "Cadet Added",
+        message: `Cadet created successfully.\nDefault Password: ${defaultPassword}`,
+        confirmText: "OK",
+        hideCancel: true
+      });
       setShowAddModal(false);
       setNewCadet({ idNumber: "", fullName: "", platoon: "", yearLevel: "2025-2026", gender: "", school: "" });
       fetchCadets();
@@ -465,7 +464,7 @@ export default function CadetRegistry() {
 
             <Text style={styles.genderLabel}>GENDER</Text>
             <View style={styles.genderRow}>
-              {["MALE", "FEMALE"].map((g) => (
+              {["Male", "Female"].map((g) => (
                 <TouchableOpacity
                   key={g}
                   style={[styles.genderBtn, newCadet.gender === g && styles.genderBtnActive]}
@@ -477,7 +476,7 @@ export default function CadetRegistry() {
                       newCadet.gender === g && styles.genderBtnTextActive,
                     ]}
                   >
-                    {g}
+                    {g.toUpperCase()}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -506,34 +505,36 @@ export default function CadetRegistry() {
         </View>
       </Modal>
 
-      {/* Web-Reliable Confirm Modal */}
+      {/* Web-Reliable Confirm/Alert Modal */}
       <Modal visible={!!confirmProp} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{confirmProp?.title}</Text>
-            <Text style={styles.modalSub}>{confirmProp?.message}</Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setConfirmProp(null)}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.confirmBtn, 
-                  confirmProp?.danger ? styles.confirmBtnDanger : styles.confirmBtnSafe
-                ]}
-                onPress={() => {
-                  if (confirmProp) {
-                    confirmProp.onConfirm();
-                  }
-                  setConfirmProp(null);
-                }}
-              >
-                <Text style={styles.confirmText}>{confirmProp?.confirmText}</Text>
-              </TouchableOpacity>
-            </View>
+             <Text style={styles.modalTitle}>{confirmProp?.title}</Text>
+             <Text style={styles.modalSub}>{confirmProp?.message}</Text>
+             <View style={styles.modalActions}>
+               {!confirmProp?.hideCancel && (
+                 <TouchableOpacity
+                   style={styles.cancelBtn}
+                   onPress={() => setConfirmProp(null)}
+                 >
+                   <Text style={styles.cancelText}>Cancel</Text>
+                 </TouchableOpacity>
+               )}
+               <TouchableOpacity
+                 style={[
+                   styles.confirmBtn, 
+                   confirmProp?.danger ? styles.confirmBtnDanger : styles.confirmBtnSafe
+                 ]}
+                 onPress={() => {
+                   if (confirmProp?.onConfirm) {
+                     confirmProp.onConfirm();
+                   }
+                   setConfirmProp(null);
+                 }}
+               >
+                 <Text style={styles.confirmText}>{confirmProp?.confirmText || "OK"}</Text>
+               </TouchableOpacity>
+             </View>
           </View>
         </View>
       </Modal>

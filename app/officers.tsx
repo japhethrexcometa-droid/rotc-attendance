@@ -62,13 +62,13 @@ export default function OfficerManagementScreen() {
     yearLevel: "2025-2026",
   });
 
-  // Web-Safe Confirm Modal State
   const [confirmProp, setConfirmProp] = useState<{
     title: string;
     message: string;
-    onConfirm: () => void;
+    onConfirm?: () => void;
     confirmText: string;
-    danger: boolean;
+    danger?: boolean;
+    hideCancel?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -204,7 +204,7 @@ export default function OfficerManagementScreen() {
 
   const handleAddOfficer = async () => {
     if (!newOfficer.idNumber.trim() || !newOfficer.fullName.trim()) {
-      Alert.alert("Validation", "ID Number and Full Name are required.");
+      setConfirmProp({ title: "Validation Error", message: "ID Number and Full Name are required.", confirmText: "OK", hideCancel: true });
       return;
     }
 
@@ -232,29 +232,28 @@ export default function OfficerManagementScreen() {
 
       if (error) {
         if (error.code === "42501") {
-          alertRemoteFailure(
-            "Cannot add officer",
-            "Database policy blocked this insert. Check connection or server setup.",
-          );
+          setConfirmProp({ title: "Cannot add officer", message: "Database policy blocked this insert. Check connection or server setup.", confirmText: "OK", hideCancel: true });
           return;
         }
         if (error.code === "23505") {
-          Alert.alert("Duplicate", "ID Number already exists.");
+          setConfirmProp({ title: "Duplicate", message: "ID Number already exists.", confirmText: "OK", hideCancel: true });
         } else if (
           shouldSilenceRemoteFailureAlerts() ||
           isLikelyNetworkErrorMessage(error.message)
         ) {
           alertRemoteFailure("Cannot add officer", error.message);
         } else {
-          Alert.alert("Error", error.message);
+          setConfirmProp({ title: "Error", message: error.message, confirmText: "OK", hideCancel: true });
         }
         return;
       }
 
-      Alert.alert(
-        "Officer Added",
-        `Officer account created successfully.\nDefault Password: ${defaultPassword}`,
-      );
+      setConfirmProp({
+        title: "Officer Added",
+        message: `Officer account created successfully.\nDefault Password: ${defaultPassword}`,
+        confirmText: "OK", 
+        hideCancel: true
+      });
       setShowAddModal(false);
       setNewOfficer({
         idNumber: "",
@@ -453,32 +452,34 @@ export default function OfficerManagementScreen() {
         </View>
       </Modal>
 
-      {/* Web-Reliable Confirm Modal */}
+      {/* Web-Reliable Confirm/Alert Modal */}
       <Modal visible={!!confirmProp} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{confirmProp?.title}</Text>
             <Text style={styles.modalSub}>{confirmProp?.message}</Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setConfirmProp(null)}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
+              {!confirmProp?.hideCancel && (
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => setConfirmProp(null)}
+                >
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={[
                   styles.confirmBtn, 
                   confirmProp?.danger ? styles.confirmBtnDanger : styles.confirmBtnSafe
                 ]}
                 onPress={() => {
-                  if (confirmProp) {
+                  if (confirmProp?.onConfirm) {
                     confirmProp.onConfirm();
                   }
                   setConfirmProp(null);
                 }}
               >
-                <Text style={styles.confirmText}>{confirmProp?.confirmText}</Text>
+                <Text style={styles.confirmText}>{confirmProp?.confirmText || "OK"}</Text>
               </TouchableOpacity>
             </View>
           </View>

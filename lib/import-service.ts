@@ -305,7 +305,7 @@ export async function parseExcel(
         "Full Name": fullName,
         Platoon: normalizeCadetText(cadet["Platoon"]) || undefined,
         "Year Level": normalizeCadetText(cadet["Year Level"]) || "2025-2026",
-        Gender: normalizeCadetText(cadet["Gender"]).toUpperCase() || undefined,
+        Gender: normalizeCadetText(cadet["Gender"]).charAt(0).toUpperCase() + normalizeCadetText(cadet["Gender"]).slice(1).toLowerCase() || undefined,
         School: normalizeCadetText(cadet["School"]) || undefined,
       });
       continue;
