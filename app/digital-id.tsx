@@ -211,6 +211,9 @@ export default function DigitalIDScreen() {
     }
   };
 
+  const displayCadet: CadetIDData | null =
+    mode === "cadet" ? cadetData : selectedCadet;
+
   const handleDownload = async () => {
     try {
       if (!viewShotRef.current) return;
@@ -395,9 +398,6 @@ export default function DigitalIDScreen() {
       </SafeAreaView>
     );
   }
-
-  const displayCadet: CadetIDData | null =
-    mode === "cadet" ? cadetData : selectedCadet;
 
   const displayPhoto = photoUri ?? displayCadet?.photo_url ?? null;
   const isOwnCard = mode === "cadet";
