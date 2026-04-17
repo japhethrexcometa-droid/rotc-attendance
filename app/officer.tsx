@@ -90,7 +90,7 @@ export default function OfficerDashboard() {
     ).then((session) => {
       if (!session) return;
       setUserSession(session);
-      setLoading(false);
+      setTimeout(() => setLoading(false), 2000);
     });
   }, [router]);
 
