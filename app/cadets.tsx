@@ -21,6 +21,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from "react-native";
 import { hashPassword } from "../lib/auth";
 import type { UserSession } from "../lib/auth";
@@ -65,6 +66,15 @@ export default function CadetRegistry() {
     school: "",
   });
 
+  // Web-Safe Confirm Modal State
+  const [confirmProp, setConfirmProp] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText: string;
+    danger: boolean;
+  } | null>(null);
+
   useEffect(() => {
     const bootstrap = async () => {
       const user = await requireRole(
@@ -102,34 +112,37 @@ export default function CadetRegistry() {
       Alert.alert("Not allowed", "Only Admin can update cadet status.");
       return;
     }
+
     const isDropping = cadet.is_active;
-    const confirmed = await confirmAction(
-      isDropping ? "Drop Cadet" : "Re-activate Cadet",
-      isDropping
+
+    setConfirmProp({
+      title: isDropping ? "Drop Cadet" : "Re-activate Cadet",
+      message: isDropping
         ? `Mark ${cadet.full_name} as DROPPED?\n\nTheir attendance history is preserved. You can re-activate them anytime if they return.`
-        : `Re-activate ${cadet.full_name}?\n\nThey will be restored as an active cadet and can scan QR again.`
-    );
+        : `Re-activate ${cadet.full_name}?\n\nThey will be restored as an active cadet and can scan QR again.`,
+      confirmText: isDropping ? "Drop" : "Re-activate",
+      danger: isDropping,
+      onConfirm: async () => {
+        setWorkingId(cadet.id);
+        const { error } = await supabase
+          .from("users")
+          .update({ is_active: !cadet.is_active })
+          .eq("id", cadet.id);
 
-    if (confirmed) {
-      setWorkingId(cadet.id);
-      const { error } = await supabase
-        .from("users")
-        .update({ is_active: !cadet.is_active })
-        .eq("id", cadet.id);
+        if (error) {
+          alertRemoteFailure("Update Failed", error.message);
+          setWorkingId(null);
+          return;
+        }
 
-      if (error) {
-        alertRemoteFailure("Update Failed", error.message);
+        setCadets((prev) =>
+          prev.map((row) =>
+            row.id === cadet.id ? { ...row, is_active: !cadet.is_active } : row,
+          ),
+        );
         setWorkingId(null);
-        return;
       }
-
-      setCadets((prev) =>
-        prev.map((row) =>
-          row.id === cadet.id ? { ...row, is_active: !cadet.is_active } : row,
-        ),
-      );
-      setWorkingId(null);
-    }
+    });
   };
 
   // Soft-delete: hides cadet from registry and disables login, but preserves history.
@@ -138,31 +151,34 @@ export default function CadetRegistry() {
       Alert.alert("Not allowed", "Only Admin can delete cadet accounts.");
       return;
     }
-    const confirmed = await confirmAction(
-      "Delete Cadet Account",
-      `Delete ${cadet.full_name}?\n\nThis will remove them from the registry and disable QR/login. Attendance history will be preserved.`
-    );
-    if (confirmed) {
-      setWorkingId(cadet.id);
-      const { error } = await supabase
-        .from("users")
-        .update({
-          is_deleted: true,
-          is_active: false,
-          password_hash: null,
-          qr_token: null,
-        })
-        .eq("id", cadet.id);
+    
+    setConfirmProp({
+      title: "Delete Cadet Account",
+      message: `Delete ${cadet.full_name}?\n\nThis will remove them from the registry and disable QR/login. Attendance history will be preserved.`,
+      confirmText: "Delete",
+      danger: true,
+      onConfirm: async () => {
+        setWorkingId(cadet.id);
+        const { error } = await supabase
+          .from("users")
+          .update({
+            is_deleted: true,
+            is_active: false,
+            password_hash: null,
+            qr_token: null,
+          })
+          .eq("id", cadet.id);
 
-      if (error) {
-        alertRemoteFailure("Delete Failed", error.message);
+        if (error) {
+          alertRemoteFailure("Delete Failed", error.message);
+          setWorkingId(null);
+          return;
+        }
+
+        setCadets((prev) => prev.filter((row) => row.id !== cadet.id));
         setWorkingId(null);
-        return;
       }
-
-      setCadets((prev) => prev.filter((row) => row.id !== cadet.id));
-      setWorkingId(null);
-    }
+    });
   };
 
   const filteredCadets = useMemo(() => {
@@ -485,6 +501,38 @@ export default function CadetRegistry() {
                 ) : (
                   <Text style={styles.confirmText}>Create Cadet</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Web-Reliable Confirm Modal */}
+      <Modal visible={!!confirmProp} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{confirmProp?.title}</Text>
+            <Text style={styles.modalSub}>{confirmProp?.message}</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setConfirmProp(null)}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmBtn, 
+                  confirmProp?.danger ? styles.confirmBtnDanger : styles.confirmBtnSafe
+                ]}
+                onPress={() => {
+                  if (confirmProp) {
+                    confirmProp.onConfirm();
+                  }
+                  setConfirmProp(null);
+                }}
+              >
+                <Text style={styles.confirmText}>{confirmProp?.confirmText}</Text>
               </TouchableOpacity>
             </View>
           </View>

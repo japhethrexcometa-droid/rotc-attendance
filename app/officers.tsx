@@ -23,6 +23,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from "react-native";
 import { hashPassword } from "../lib/auth";
 import { requireRole } from "../lib/authz";
@@ -61,6 +62,15 @@ export default function OfficerManagementScreen() {
     position: "",
     yearLevel: "2025-2026",
   });
+
+  // Web-Safe Confirm Modal State
+  const [confirmProp, setConfirmProp] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText: string;
+    danger: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -127,65 +137,69 @@ export default function OfficerManagementScreen() {
 
   const handleResetPassword = async (officer: OfficerRow) => {
     const defaultPassword = buildDefaultPassword(officer.id_number);
-    const confirmed = await confirmAction(
-      "Reset Officer Password",
-      `Reset password for ${officer.full_name} to default format?\n\nNew password: ${defaultPassword}`
-    );
-    if (confirmed) {
-      try {
-        setWorkingId(officer.id);
-        const passwordHash = await hashPassword(defaultPassword);
-        const { error } = await supabase
-          .from("users")
-          .update({ password_hash: passwordHash })
-          .eq("id", officer.id);
-        if (error) throw error;
-        Alert.alert(
-          "Password Reset",
-          `${officer.full_name}'s password was reset.\nNew password: ${defaultPassword}`,
-        );
-      } catch (err: any) {
-        alertRemoteFailure(
-          "Reset Failed",
-          err?.message || "Could not reset officer password.",
-        );
-      } finally {
-        setWorkingId(null);
+    setConfirmProp({
+      title: "Reset Officer Password",
+      message: `Reset password for ${officer.full_name} to default format?\n\nNew password: ${defaultPassword}`,
+      confirmText: "Reset",
+      danger: true,
+      onConfirm: async () => {
+        try {
+          setWorkingId(officer.id);
+          const passwordHash = await hashPassword(defaultPassword);
+          const { error } = await supabase
+            .from("users")
+            .update({ password_hash: passwordHash })
+            .eq("id", officer.id);
+          if (error) throw error;
+          Alert.alert(
+            "Password Reset",
+            `${officer.full_name}'s password was reset.\nNew password: ${defaultPassword}`,
+          );
+        } catch (err: any) {
+          alertRemoteFailure(
+            "Reset Failed",
+            err?.message || "Could not reset officer password.",
+          );
+        } finally {
+          setWorkingId(null);
+        }
       }
-    }
+    });
   };
 
   const handleDeleteOfficer = async (officer: OfficerRow) => {
-    const confirmed = await confirmAction(
-      "Delete Officer Account",
-      `Delete ${officer.full_name} (${officer.id_number})?\n\nThis will remove them from the list and disable their access. History is preserved.`
-    );
-    if (confirmed) {
-      setWorkingId(officer.id);
-      // Use Soft Delete (consistent with cadets)
-      const { error } = await supabase
-        .from("users")
-        .update({ 
-          is_deleted: true,
-          is_active: false,
-          password_hash: null,
-          qr_token: null
-        })
-        .eq("id", officer.id);
+    setConfirmProp({
+      title: "Delete Officer Account",
+      message: `Delete ${officer.full_name} (${officer.id_number})?\n\nThis will remove them from the list and disable their access. History is preserved.`,
+      confirmText: "Delete",
+      danger: true,
+      onConfirm: async () => {
+        setWorkingId(officer.id);
+        // Use Soft Delete (consistent with cadets)
+        const { error } = await supabase
+          .from("users")
+          .update({ 
+            is_deleted: true,
+            is_active: false,
+            password_hash: null,
+            qr_token: null
+          })
+          .eq("id", officer.id);
 
-      if (error) {
-        alertRemoteFailure("Delete Failed", error.message);
+        if (error) {
+          alertRemoteFailure("Delete Failed", error.message);
+          setWorkingId(null);
+          return;
+        }
+
+        setOfficers((prev) => prev.filter((row) => row.id !== officer.id));
         setWorkingId(null);
-        return;
+        Alert.alert(
+          "Success",
+          `${officer.full_name} has been removed.`
+        );
       }
-
-      setOfficers((prev) => prev.filter((row) => row.id !== officer.id));
-      setWorkingId(null);
-      Alert.alert(
-        "Success",
-        `${officer.full_name} has been removed.`
-      );
-    }
+    });
   };
 
   const handleAddOfficer = async () => {
@@ -424,7 +438,7 @@ export default function OfficerManagementScreen() {
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.confirmBtn}
+                style={styles.confirmBtnBlue}
                 onPress={handleAddOfficer}
                 disabled={addingOfficer}
               >
@@ -438,6 +452,39 @@ export default function OfficerManagementScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Web-Reliable Confirm Modal */}
+      <Modal visible={!!confirmProp} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{confirmProp?.title}</Text>
+            <Text style={styles.modalSub}>{confirmProp?.message}</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setConfirmProp(null)}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmBtn, 
+                  confirmProp?.danger ? styles.confirmBtnDanger : styles.confirmBtnSafe
+                ]}
+                onPress={() => {
+                  if (confirmProp) {
+                    confirmProp.onConfirm();
+                  }
+                  setConfirmProp(null);
+                }}
+              >
+                <Text style={styles.confirmText}>{confirmProp?.confirmText}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -555,7 +602,7 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: "row", justifyContent: "flex-end", marginTop: 6 },
   cancelBtn: { paddingVertical: 10, paddingHorizontal: 14 },
   cancelText: { color: "#6E7A71", fontWeight: "700" },
-  confirmBtn: {
+  confirmBtnBlue: {
     backgroundColor: "#2F4F8F",
     borderRadius: 10,
     paddingVertical: 10,
@@ -563,6 +610,15 @@ const styles = StyleSheet.create({
     minWidth: 120,
     alignItems: "center",
   },
+  confirmBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  confirmBtnDanger: { backgroundColor: "#C62828" },
+  confirmBtnSafe: { backgroundColor: "#2E7D32" },
   confirmText: { color: "#FFF", fontWeight: "800" },
   deleteRow: {
     flexDirection: "row",
