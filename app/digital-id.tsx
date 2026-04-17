@@ -54,6 +54,7 @@ export default function DigitalIDScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [publicUploadError, setPublicUploadError] = useState<string | null>(null);
+  const [showMessengerBanner, setShowMessengerBanner] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [publicCadets, setPublicCadets] = useState<CadetIDData[]>([]);
@@ -220,10 +221,7 @@ export default function DigitalIDScreen() {
         const isMessenger = /FBAN|FBAV|Messenger|Instagram|Snapchat/i.test(navigator.userAgent);
         
         if (isMessenger) {
-          Alert.alert(
-            "Download Blocked by App", 
-            "You are using an in-app browser. Please tap the 3 dots (...) in the corner and choose 'Open in Chrome/Browser' to download your Digital ID in high quality."
-          );
+          setShowMessengerBanner(true);
           return;
         }
 
@@ -629,6 +627,26 @@ export default function DigitalIDScreen() {
             </View>
             </View>
           </ViewShot>
+
+          {showMessengerBanner && (
+            <View style={styles.messengerBanner}>
+              <Text style={styles.messengerBannerTitle}>⚠️ In-App Browser Detected</Text>
+              <Text style={styles.messengerBannerBody}>
+                Facebook Messenger blocks HD downloads. To save your Digital ID:
+              </Text>
+              <View style={styles.messengerSteps}>
+                <Text style={styles.messengerStep}>1️⃣  Tap the <Text style={styles.messengerStepBold}>⋯  (3-dot menu)</Text> in the top corner</Text>
+                <Text style={styles.messengerStep}>2️⃣  Choose <Text style={styles.messengerStepBold}>"Open in Chrome"</Text> or <Text style={styles.messengerStepBold}>"Open in Browser"</Text></Text>
+                <Text style={styles.messengerStep}>3️⃣  Then tap <Text style={styles.messengerStepBold}>"Download / Print-ready PNG"</Text> again</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.messengerBannerClose}
+                onPress={() => setShowMessengerBanner(false)}
+              >
+                <Text style={styles.messengerBannerCloseText}>Got it — Dismiss</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <TouchableOpacity
             id="no-print-download"
@@ -1162,5 +1180,56 @@ const styles = StyleSheet.create({
   shareBtnText: { color: "#1F3D2B", fontWeight: "800", fontSize: 15 },
   printOnly: {
     display: "none",
+  },
+  messengerBanner: {
+    width: "100%",
+    backgroundColor: "#FFF8E7",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#D4A353",
+    padding: 16,
+    marginBottom: 14,
+    marginTop: 4,
+  },
+  messengerBannerTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#7A4E00",
+    marginBottom: 6,
+    textAlign: "center",
+    letterSpacing: 0.3,
+  },
+  messengerBannerBody: {
+    fontSize: 13,
+    color: "#5A3E00",
+    textAlign: "center",
+    marginBottom: 12,
+    fontWeight: "600",
+  },
+  messengerSteps: {
+    gap: 6,
+    marginBottom: 14,
+  },
+  messengerStep: {
+    fontSize: 13,
+    color: "#4A3800",
+    lineHeight: 20,
+    paddingHorizontal: 4,
+  },
+  messengerStepBold: {
+    fontWeight: "900",
+    color: "#7A4E00",
+  },
+  messengerBannerClose: {
+    alignSelf: "center",
+    backgroundColor: "#D4A353",
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+  },
+  messengerBannerCloseText: {
+    color: "#FFF",
+    fontWeight: "800",
+    fontSize: 13,
   },
 });
