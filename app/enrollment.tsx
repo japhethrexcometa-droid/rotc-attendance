@@ -14,7 +14,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  View,
   Alert,
   Platform,
 } from "react-native";

@@ -273,6 +273,13 @@ export default function DigitalIDScreen() {
   if (mode === "loading") {
     return (
       <SafeAreaView style={styles.safeArea}>
+        {Platform.OS === "web" && (
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              .no-print { display: none !important; }
+            }
+          `}} />
+        )}
         <ActivityIndicator style={{ flex: 1 }} color="#1F3D2B" />
       </SafeAreaView>
     );
@@ -291,6 +298,13 @@ export default function DigitalIDScreen() {
 
     return (
       <SafeAreaView style={styles.safeArea}>
+        {Platform.OS === "web" && (
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              .no-print { display: none !important; }
+            }
+          `}} />
+        )}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -415,7 +429,26 @@ export default function DigitalIDScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
+      {Platform.OS === "web" && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body { background-color: white !important; margin: 0 !important; padding: 0 !important; }
+            #no-print-header, #no-print-download, #no-print-share, .lookup-section { 
+               display: none !important; 
+            }
+            #printable-card { 
+               position: fixed; 
+               top: 50%; 
+               left: 50%; 
+               transform: translate(-50%, -50%) scale(1.5);
+               z-index: 9999;
+               background: white;
+               border: none !important;
+            }
+          }
+        `}} />
+      )}
+      <View id="no-print-header" style={styles.header}>
         <TouchableOpacity
           onPress={() => {
             if (mode === "public" && selectedCadet) {
@@ -456,7 +489,7 @@ export default function DigitalIDScreen() {
             </View>
           ) : null}
 
-          <ViewShot ref={viewShotRef} style={styles.idCardContainer}>
+          <ViewShot ref={viewShotRef} id="printable-card" style={styles.idCardContainer}>
             <View style={styles.idCard}>
               <LinearGradient
                 colors={["rgba(255,255,255,0.15)", "rgba(255,255,255,0)"]}
@@ -610,6 +643,7 @@ export default function DigitalIDScreen() {
           </ViewShot>
 
           <TouchableOpacity
+            id="no-print-download"
             style={styles.downloadBtn}
             onPress={handleDownload}
             activeOpacity={0.8}
@@ -620,6 +654,7 @@ export default function DigitalIDScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
+            id="no-print-share"
             style={styles.shareBtn}
             onPress={handleShareLink}
             activeOpacity={0.8}
@@ -1137,33 +1172,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   shareBtnText: { color: "#1F3D2B", fontWeight: "800", fontSize: 15 },
-  "@media print": {
-    safeArea: {
-      backgroundColor: "#FFF",
-      padding: 0,
-      margin: 0,
-    },
-    header: { display: "none" },
-    publicContent: { padding: 0, margin: 0, backgroundColor: "#FFF" },
-    searchSection: { display: "none" },
-    resultsSection: { display: "none" },
-    footer: { display: "none" },
-    cardWrapper: {
-      padding: 0,
-      margin: 0,
-      alignSelf: "center",
-      marginTop: 50,
-      borderWidth: 0,
-      shadowOpacity: 0,
-    },
-    container: { backgroundColor: "#FFF" },
-    backBtn: { display: "none" },
-    downloadBtn: { display: "none" },
-    shareBtn: { display: "none" },
-    viewShotContainer: {
-      borderWidth: 0,
-      elevation: 0,
-      shadowOpacity: 0,
-    },
+  printOnly: {
+    display: "none",
   },
 });
