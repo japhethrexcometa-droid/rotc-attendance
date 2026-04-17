@@ -10,10 +10,11 @@ import {
   Settings,
   ShieldCheck,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   FlatList,
   Image,
   Platform,
@@ -23,6 +24,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import WowLoading from "../components/WowLoading";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ScannerView from "../components/ScannerView";
 import { logout, UserSession } from "../lib/auth";
@@ -78,6 +80,7 @@ export default function OfficerDashboard() {
   );
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     requireRole(
@@ -99,19 +102,34 @@ export default function OfficerDashboard() {
     }
   };
 
+  useEffect(() => {
+    if (!loading) {
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading]);
+
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color="#1F3D2B" size="large" />
-      </View>
-    );
+    return <WowLoading />;
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Premium Header */}
+      <Animated.View
+        style={{
+          opacity: headerAnim,
+          transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }],
+        }}
+      >
       <LinearGradient
-        colors={["#1F3D2B", "#2C533A"]}
+        colors={["#0F2016", "#1F3D2B", "#2C533A"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[
           styles.header,
           {
@@ -123,12 +141,22 @@ export default function OfficerDashboard() {
         ]}
       >
         <View style={styles.headerTop}>
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={styles.headerIconBtn}
-          >
-            <LogOut color="rgba(255,255,255,0.7)" size={20} />
-          </TouchableOpacity>
+          <View style={styles.topActionsRow}>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.headerIconBtn}
+            >
+              <LogOut color="rgba(255,255,255,0.7)" size={20} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/digital-id")}
+              style={styles.headerIconBtn}
+              accessibilityLabel="My digital ID"
+            >
+              <IdCard color="rgba(255,255,255,0.7)" size={20} />
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.unitHeaderGroup}>
             <View style={styles.headerLogoCircle}>
               <Image
@@ -156,13 +184,6 @@ export default function OfficerDashboard() {
               />
             </View>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push("/digital-id")}
-            style={styles.headerIconBtn}
-            accessibilityLabel="My digital ID"
-          >
-            <IdCard color="rgba(255,255,255,0.7)" size={20} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.profileRow}>
@@ -193,6 +214,7 @@ export default function OfficerDashboard() {
           </TouchableOpacity>
         </View>
       </LinearGradient>
+      </Animated.View>
 
       {/* Tab Content */}
       <View style={{ flex: 1 }}>
@@ -260,7 +282,8 @@ function ScannerTab({ userSession }: { userSession: UserSession | null }) {
   if (openSession === undefined) {
     return (
       <View style={styles.centeredMessage}>
-        <ActivityIndicator color="#1F3D2B" size="large" />
+        <ScanLine color="#1F3D2B" size={36} />
+        <Text style={styles.noSessionText}>Loading session...</Text>
       </View>
     );
   }
@@ -736,10 +759,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 32,
   },
   headerTop: {
+    marginBottom: 20,
+  },
+  topActionsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 25,
+    marginBottom: 10,
   },
   headerIconBtn: {
     width: 38,
@@ -756,10 +782,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   unitHeaderGroup: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    width: "100%",
   },
   headerLogoCircle: {
     width: 48,
@@ -783,8 +809,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   unitHeaderCol: {
-    flex: 1,
+    flexShrink: 1,
     alignItems: "center",
+    paddingHorizontal: 4,
   },
   unitHeaderTopText: {
     color: "#D4A353",

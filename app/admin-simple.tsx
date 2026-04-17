@@ -19,13 +19,15 @@ import {
   Users,
   Award,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   Image,
   Modal,
   Platform,
+  Pressable,
   ScrollView,
   Share,
   StatusBar,
@@ -35,6 +37,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import WowLoading from "../components/WowLoading";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { logout, type UserSession } from "../lib/auth";
 import { requireRole } from "../lib/authz";
@@ -54,6 +57,7 @@ import { supabase } from "../lib/supabase";
 import { confirmAction } from "../lib/web-utils";
 
 export default function CommanderDashboard() {
+  const headerAnim = useRef(new Animated.Value(0)).current;
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isTiny = width < 350;
@@ -183,12 +187,19 @@ export default function CommanderDashboard() {
     }
   };
 
+  useEffect(() => {
+    if (!loading) {
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading]);
+
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1F3D2B" />
-      </View>
-    );
+    return <WowLoading />;
   }
 
   return (
@@ -196,17 +207,31 @@ export default function CommanderDashboard() {
       <StatusBar barStyle="light-content" />
       <View style={styles.container}>
         {/* Premium Header */}
+        <Animated.View
+          style={{
+            opacity: headerAnim,
+            transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }],
+          }}
+        >
         <LinearGradient
-          colors={["#1F3D2B", "#2C533A"]}
+          colors={["#0F2016", "#1F3D2B", "#2C533A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={[styles.header, { paddingHorizontal: sidePad }]}
         >
           <View style={styles.headerTop}>
-            <TouchableOpacity
-              onPress={handleLogoutClick}
-              style={styles.headerIconBtn}
-            >
-              <LogOut color="rgba(255,255,255,0.7)" size={20} />
-            </TouchableOpacity>
+            <View style={styles.topActionsRow}>
+              <TouchableOpacity
+                onPress={handleLogoutClick}
+                style={styles.headerIconBtn}
+              >
+                <LogOut color="rgba(255,255,255,0.7)" size={20} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconBtn}>
+                <Bell color="rgba(255,255,255,0.7)" size={20} />
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.unitHeaderGroup}>
               <View style={styles.headerLogoCircle}>
                 <Image
@@ -234,9 +259,6 @@ export default function CommanderDashboard() {
                 />
               </View>
             </View>
-            <TouchableOpacity style={styles.headerIconBtn}>
-              <Bell color="rgba(255,255,255,0.7)" size={20} />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.profileRow}>
@@ -258,6 +280,7 @@ export default function CommanderDashboard() {
             </View>
           </View>
         </LinearGradient>
+        </Animated.View>
 
         <ScrollView
           style={[styles.content, { paddingHorizontal: sidePad }]}
@@ -284,24 +307,28 @@ export default function CommanderDashboard() {
           )}
           {/* Stat Cards */}
           <View style={[styles.statsGrid, { gap: gridGap }]}>
-            <View style={[styles.statCard, { width: statTileWidth }]}>
-              <Users color="#1F3D2B" size={24} />
+            <LinearGradient colors={["#1F3D2B", "#2C533A"]} style={[styles.statCard, { width: statTileWidth }]}>
+              <View style={styles.statCardGlass}>
+                <Users color="#D4A353" size={26} />
+                <Text style={styles.statNumber} maxFontSizeMultiplier={1.2}>
+                  {stats.totalCadets}
+                </Text>
+                <Text style={styles.statLabel} maxFontSizeMultiplier={1.2}>
+                  TOTAL CADETS
+                </Text>
+              </View>
+            </LinearGradient>
+            <LinearGradient colors={["#1F3D2B", "#2C533A"]} style={[styles.statCard, { width: statTileWidth }]}>
+              <View style={styles.statCardGlass}>
+              <Clock color="#D4A353" size={26} />
               <Text style={styles.statNumber} maxFontSizeMultiplier={1.2}>
-                {stats.totalCadets}
+                {stats.presentToday}
               </Text>
               <Text style={styles.statLabel} maxFontSizeMultiplier={1.2}>
-                TOTAL CADETS
+                PRESENT TODAY
               </Text>
-            </View>
-            <View style={[styles.statCard, { width: statTileWidth }]}>
-              <Clock color="#D4A353" size={24} />
-              <Text style={styles.statNumber} maxFontSizeMultiplier={1.2}>
-                {stats.activeSessions}
-              </Text>
-              <Text style={styles.statLabel} maxFontSizeMultiplier={1.2}>
-                ACTIVE WINDOWS
-              </Text>
-            </View>
+              </View>
+            </LinearGradient>
           </View>
 
           {/* Quick Actions */}
@@ -448,18 +475,41 @@ export default function CommanderDashboard() {
 }
 
 function ActionTile({ icon, label, color, width, onPress }: any) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const handlePressIn = () => {
+    Animated.spring(scale, { toValue: 0.93, useNativeDriver: true, speed: 30 }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20 }).start();
+  };
   return (
-    <TouchableOpacity
-      style={[styles.tile, { backgroundColor: color, width }]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <View style={styles.tileIcon}>{icon}</View>
-      <Text style={styles.tileLabel} maxFontSizeMultiplier={1.2}>
-        {label}
-      </Text>
-    </TouchableOpacity>
+    <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+      <Animated.View style={[styles.tile, { width, transform: [{ scale }] }]}>
+        <LinearGradient
+          colors={[lighten(color), color]}
+          style={StyleSheet.absoluteFillObject}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={styles.tileGlass} />
+        <View style={styles.tileIcon}>{icon}</View>
+        <Text style={styles.tileLabel} maxFontSizeMultiplier={1.2}>
+          {label}
+        </Text>
+      </Animated.View>
+    </Pressable>
   );
+}
+
+function lighten(hex: string): string {
+  // Add slight brightness offset for gradient
+  try {
+    const num = parseInt(hex.replace("#", ""), 16);
+    const r = Math.min(255, (num >> 16) + 40);
+    const g = Math.min(255, ((num >> 8) & 0xff) + 40);
+    const b = Math.min(255, (num & 0xff) + 40);
+    return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  } catch { return hex; }
 }
 
 const styles = StyleSheet.create({
@@ -479,10 +529,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 32,
   },
   headerTop: {
+    marginBottom: 20,
+  },
+  topActionsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 10,
   },
   headerBrand: {
     color: "#FFF",
@@ -492,10 +545,10 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   unitHeaderGroup: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    width: "100%",
   },
   headerLogoCircle: {
     width: 48,
@@ -519,8 +572,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   unitHeaderCol: {
-    flex: 1,
+    flexShrink: 1,
     alignItems: "center",
+    paddingHorizontal: 4,
   },
   unitHeaderTopText: {
     color: "#D4A353",
@@ -595,29 +649,33 @@ const styles = StyleSheet.create({
 
   statsGrid: { flexDirection: "row", flexWrap: "wrap", marginBottom: 30 },
   statCard: {
-    backgroundColor: "#FFF",
     borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#1F3D2B",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  statCardGlass: {
     padding: 20,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#EAECE6",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "900",
-    color: "#1F3D2B",
-    marginVertical: 8,
+    color: "#FFF",
+    marginVertical: 6,
+    textShadowColor: "rgba(212,163,83,0.6)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   statLabel: {
     fontSize: 9,
     fontWeight: "900",
-    color: "#A0B3A6",
-    letterSpacing: 0.5,
+    color: "rgba(212,163,83,0.9)",
+    letterSpacing: 1,
   },
 
   sectionTitle: {
@@ -638,17 +696,25 @@ const styles = StyleSheet.create({
   tile: {
     height: 120,
     borderRadius: 20,
+    overflow: "hidden",
     padding: 20,
-    justifyContent: "center",
-    marginBottom: 16,
+    justifyContent: "flex-end",
+    marginBottom: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 8,
   },
-  tileIcon: { marginBottom: 12 },
-  tileLabel: { color: "#FFF", fontSize: 14, fontWeight: "800" },
+  tileGlass: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  tileIcon: { marginBottom: 10 },
+  tileLabel: { color: "#FFF", fontSize: 14, fontWeight: "900", letterSpacing: 0.5 },
 
   listAction: {
     flexDirection: "row",

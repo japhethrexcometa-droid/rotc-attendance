@@ -283,29 +283,45 @@ export async function getCurrentScannableSession(): Promise<Session | null> {
 
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const preferredType: "AM" | "PM" = now.getHours() < 12 ? "AM" : "PM";
-  const orderedSessions = [...(data as Session[])].sort((a, b) => {
-    if (a.session_type === b.session_type) return 0;
-    if (a.session_type === preferredType) return -1;
-    if (b.session_type === preferredType) return 1;
+
+  // 1. Filter out sessions that are already past their cutoff
+  const activeSessions = (data as Session[]).filter(
+    (row) => nowMinutes < toMinutes(row.cutoff_time)
+  );
+
+  // 2. Perform cleanup for sessions that are past cutoff
+  for (const row of (data as Session[])) {
+    if (nowMinutes >= toMinutes(row.cutoff_time)) {
+      await enforceSessionCutoff(row);
+    }
+  }
+
+  // 3. If no sessions are valid, return null
+  if (activeSessions.length === 0) {
+    await clearCachedScannableSession();
+    return null;
+  }
+
+  // 4. Sort valid sessions by which one is "most relevant" to current time
+  const orderedSessions = [...activeSessions].sort((a, b) => {
+    // Session is considered "started" if we are within 45 mins of start_time
+    const aStarted = nowMinutes >= toMinutes(a.start_time) - 45;
+    const bStarted = nowMinutes >= toMinutes(b.start_time) - 45;
+
+    if (aStarted && !bStarted) return -1;
+    if (!aStarted && bStarted) return 1;
+
+    // Fallback: Use 12:00 PM threshold
+    const preferredType: "AM" | "PM" = now.getHours() < 12 ? "AM" : "PM";
+    if (a.session_type === preferredType && b.session_type !== preferredType) return -1;
+    if (b.session_type === preferredType && a.session_type !== preferredType) return 1;
+
     return 0;
   });
 
-  for (const row of orderedSessions) {
-    const cutoffMinutes = toMinutes(row.cutoff_time);
-    if (nowMinutes >= cutoffMinutes) {
-      await enforceSessionCutoff(row);
-      continue;
-    }
-    // If session is OPEN and not past cutoff, scanner can accept scans.
-    // Attendance status (present/late) is still decided using late_time.
-    await setCachedScannableSession(row);
-    return row;
-  }
-
-  // All sessions past cutoff
-  await clearCachedScannableSession();
-  return null;
+  const selectedSession = orderedSessions[0];
+  await setCachedScannableSession(selectedSession);
+  return selectedSession;
 }
 
 export async function autoCloseExpiredSessions(

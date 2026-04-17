@@ -1,7 +1,10 @@
+import { LinearGradient } from "expo-linear-gradient";
+import { AlertCircle } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Alert,
+  Animated,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -19,16 +22,21 @@ import {
   subscribeFieldMode,
 } from "../lib/field-mode";
 import { supabase } from "../lib/supabase";
+import WowLoading from "../components/WowLoading";
 
 export default function LoginScreen() {
   const router = useRouter();
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [dbStatus, setDbStatus] = useState<"checking" | "online" | "offline">(
-    "checking",
-  );
+  const [dbStatus, setDbStatus] = useState<"checking" | "online" | "offline">("checking");
   const [fieldStrict, setFieldStrict] = useState(false);
+  const [loginError, setLoginError] = useState<{ field: "id" | "password" | "general"; message: string } | null>(null);
+
+  // Entrance animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(40)).current;
+  const logoScale = useRef(new Animated.Value(0.7)).current;
 
   useEffect(() => {
     const refreshStrict = async () => {
@@ -65,9 +73,37 @@ export default function LoginScreen() {
     })();
   }, [router]);
 
+  // Trigger entrance animation once loaded
+  useEffect(() => {
+    if (dbStatus !== "checking") {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.out(Easing.exp),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 800,
+          easing: Easing.out(Easing.exp),
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          speed: 8,
+          bounciness: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [dbStatus]);
+
   const handleLogin = async () => {
+    setLoginError(null);
     if (!userId || !password) {
-      Alert.alert("Error", "Please enter your ID and password");
+      if (!userId) setLoginError({ field: "id", message: "Please enter your ID number or username." });
+      else setLoginError({ field: "password", message: "Please enter your password." });
       return;
     }
 
@@ -78,219 +114,371 @@ export default function LoginScreen() {
     if (result.success) {
       router.replace(routeForRole(result.user.role) as any);
     } else {
-      const quiet =
-        isFieldModeStrictSync() &&
-        /offline|network|fetch|timeout|connection/i.test(result.error);
-      if (quiet) {
-        Alert.alert(
-          "Offline",
-          "No connection. Use an account that already logged in once on this device, or turn off Field Mode in Settings when you have data.",
-        );
+      if (result.error === "wrong_id") {
+        setLoginError({ field: "id", message: "Wrong ID number / Username. Not found in the system." });
+      } else if (result.error === "wrong_password") {
+        setLoginError({ field: "password", message: "Wrong password. Please try again." });
+      } else if (/offline|network|fetch|timeout|connection/i.test(result.error) && isFieldModeStrictSync()) {
+        setLoginError({ field: "general", message: "No connection. Use a previously logged-in account or disable Field Mode." });
       } else {
-        Alert.alert("Login Failed", result.error);
+        setLoginError({ field: "general", message: result.error });
       }
     }
   };
 
+  if (dbStatus === "checking") {
+    return <WowLoading />;
+  }
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <LinearGradient
+      colors={["#0A1A10", "#1F3D2B", "#2C533A"]}
+      style={styles.gradientBg}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
     >
-      <View style={styles.header}>
-        <View style={styles.logoRow}>
-          <View style={styles.logoCircle}>
-            <Image
-              source={require("../assets/images/rotc-logo.jpg")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.logoCircle}>
-            <Image
-              source={require("../assets/images/batch-logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-        <Text style={styles.title}>
-          Department of Military Science and Tactics
-        </Text>
-        <Text style={styles.subtitle}>ROTC Attendance System</Text>
-      </View>
-
-      <View style={styles.formContainer}>
-        <Text style={styles.label}>ID Number / Username</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter ID Number"
-          placeholderTextColor="#A0A0A0"
-          value={userId}
-          onChangeText={setUserId}
-          autoCapitalize="none"
-        />
-
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter Password"
-          placeholderTextColor="#A0A0A0"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-          onPress={handleLogin}
-          disabled={isLoading}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        {/* Logo Area */}
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: logoScale }],
+            },
+          ]}
         >
-          <Text style={styles.loginButtonText}>
-            {isLoading ? "Logging in..." : "LOGIN"}
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.logoRow}>
+            <View style={styles.logoCircle}>
+              <Image
+                source={require("../assets/images/rotc-logo.jpg")}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.logoDivider} />
+            <View style={[styles.logoCircle, styles.logoCircleGold]}>
+              <Image
+                source={require("../assets/images/batch-logo.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
 
-        <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.statusDot,
-              {
-                backgroundColor: fieldStrict
-                  ? "#1565C0"
-                  : dbStatus === "online"
-                    ? "#4CAF50"
-                    : dbStatus === "offline"
-                      ? "#FF9800"
-                      : "#FFC107",
-              },
-            ]}
-          />
-          <Text style={styles.statusLabelText}>
-            SYSTEM STATUS:{" "}
-            {fieldStrict
-              ? "FIELD MODE (QUIET)"
-              : dbStatus === "online"
-                ? "READY"
-                : dbStatus === "offline"
-                  ? "OFFLINE / CACHED OK"
-                  : "INITIALIZING..."}
-          </Text>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+          <Text style={styles.unitName}>MSU – Zamboanga Sibugay</Text>
+          <Text style={styles.title}>ROTC Attendance System</Text>
+          <Text style={styles.subtitle}>Department of Military Science and Tactics</Text>
+        </Animated.View>
+
+        {/* Login Card */}
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.cardTitle}>OFFICER / CADET LOGIN</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>ID Number / Username</Text>
+            <TextInput
+              style={[
+                styles.input,
+                loginError?.field === "id" && styles.inputError,
+              ]}
+              placeholder="Enter ID Number"
+              placeholderTextColor="#A0B3A6"
+              value={userId}
+              onChangeText={(t) => { setUserId(t); setLoginError(null); }}
+              autoCapitalize="none"
+            />
+            {loginError?.field === "id" && (
+              <View style={styles.errorRow}>
+                <AlertCircle color="#EF5350" size={13} />
+                <Text style={styles.errorText}>{loginError.message}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={[
+                styles.input,
+                loginError?.field === "password" && styles.inputError,
+              ]}
+              placeholder="Enter Password"
+              placeholderTextColor="#A0B3A6"
+              value={password}
+              onChangeText={(t) => { setPassword(t); setLoginError(null); }}
+              secureTextEntry
+            />
+            {loginError?.field === "password" && (
+              <View style={styles.errorRow}>
+                <AlertCircle color="#EF5350" size={13} />
+                <Text style={styles.errorText}>{loginError.message}</Text>
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+            onPress={handleLogin}
+            disabled={isLoading}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={["#D4A353", "#B8860B"]}
+              style={styles.loginGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.loginButtonText}>
+                {isLoading ? "AUTHENTICATING..." : "LOGIN"}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {loginError?.field === "general" && (
+            <View style={styles.generalErrorBox}>
+              <AlertCircle color="#EF5350" size={14} />
+              <Text style={styles.generalErrorText}>{loginError.message}</Text>
+            </View>
+          )}
+
+          <View style={styles.statusRow}>
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: fieldStrict
+                    ? "#1565C0"
+                    : dbStatus === "online"
+                      ? "#4CAF50"
+                      : "#FF9800",
+                },
+              ]}
+            />
+            <Text style={styles.statusLabelText}>
+              SYSTEM:{" "}
+              {fieldStrict
+                ? "FIELD MODE"
+                : dbStatus === "online"
+                  ? "CONNECTED"
+                  : "OFFLINE — CACHED OK"}
+            </Text>
+          </View>
+        </Animated.View>
+
+        <Animated.Text style={[styles.footerText, { opacity: fadeAnim }]}>
+          MSU–ZS ROTC UNIT • Confidential System
+        </Animated.Text>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBg: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: "#F5F7F5", // Light off-white with hint of green
     justifyContent: "center",
-    paddingVertical: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 30,
   },
   header: {
     alignItems: "center",
-    marginBottom: 50,
-    paddingHorizontal: 20,
+    marginBottom: 32,
   },
   logoRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    width: 170,
-    marginBottom: 18,
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 16,
+  },
+  logoDivider: {
+    width: 1,
+    height: 50,
+    backgroundColor: "rgba(212,163,83,0.4)",
+    marginHorizontal: 4,
   },
   logoCircle: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: "#FFFFFF",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#FFF",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#D4DDD6",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 2.5,
+    borderColor: "rgba(255,255,255,0.3)",
+    shadowColor: "#D4A353",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+    overflow: "hidden",
   },
-  logoImage: { width: 56, height: 56 },
-  title: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#1F3D2B",
+  logoCircleGold: {
+    borderColor: "rgba(212,163,83,0.6)",
+    shadowColor: "#D4A353",
+  },
+  logoImage: { width: 66, height: 66 },
+  unitName: {
+    color: "#D4A353",
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 1,
     textAlign: "center",
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#4A5D4E",
-    marginTop: 5,
-    fontWeight: "600",
+  title: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: 0.5,
+    marginTop: 4,
   },
-  formContainer: {
-    paddingHorizontal: 30,
+  subtitle: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 4,
+    letterSpacing: 0.3,
+  },
+
+  card: {
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  cardTitle: {
+    color: "#D4A353",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2.5,
+    textAlign: "center",
+    marginBottom: 22,
+  },
+  inputGroup: {
+    marginBottom: 16,
   },
   label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1F3D2B",
+    fontSize: 11,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.7)",
     marginBottom: 8,
-    marginLeft: 4,
+    letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "#D4DDD6",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 24,
-    color: "#333",
+    borderColor: "rgba(255,255,255,0.15)",
+    borderRadius: 14,
+    padding: 15,
+    fontSize: 15,
+    color: "#FFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   loginButton: {
-    backgroundColor: "#1F3D2B", // Military Deep Green
-    borderRadius: 12,
-    padding: 18,
-    alignItems: "center",
-    marginTop: 10,
-    shadowColor: "#1F3D2B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 6,
+    borderRadius: 14,
+    overflow: "hidden",
+    marginTop: 8,
+    marginBottom: 20,
+    shadowColor: "#D4A353",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  loginButtonDisabled: {
-    opacity: 0.6,
+  loginButtonDisabled: { opacity: 0.6 },
+  loginGradient: {
+    paddingVertical: 17,
+    alignItems: "center",
+    borderRadius: 14,
   },
   loginButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    letterSpacing: 1,
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 2,
   },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 20,
-    opacity: 0.8,
   },
   statusDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
-    marginRight: 8,
+    marginRight: 7,
   },
   statusLabelText: {
     fontSize: 10,
     fontWeight: "900",
-    color: "#4A5D4E",
+    color: "rgba(255,255,255,0.5)",
     letterSpacing: 1,
+  },
+  footerText: {
+    color: "rgba(255,255,255,0.25)",
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+    letterSpacing: 1,
+    marginTop: 22,
+  },
+  inputError: {
+    borderColor: "#EF5350",
+    borderWidth: 1.5,
+    backgroundColor: "rgba(239,83,80,0.08)",
+  },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    gap: 5,
+  },
+  errorText: {
+    color: "#EF9A9A",
+    fontSize: 11,
+    fontWeight: "700",
+    flex: 1,
+  },
+  generalErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(239,83,80,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(239,83,80,0.35)",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  generalErrorText: {
+    color: "#EF9A9A",
+    fontSize: 12,
+    fontWeight: "700",
+    flex: 1,
   },
 });

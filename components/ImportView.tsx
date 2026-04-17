@@ -64,7 +64,7 @@ export default function ImportView() {
         setIsProcessing(true);
         const file = result.assets[0];
 
-        const importResult = await importFromFile(file.uri);
+        const importResult = await importFromFile(file);
 
         setIsProcessing(false);
 

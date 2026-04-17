@@ -8,9 +8,11 @@ import {
   QrCode,
   User,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
+  Alert,
+  Animated,
+  Easing,
   Image,
   Platform,
   ScrollView,
@@ -19,8 +21,8 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert,
 } from "react-native";
+import WowLoading from "../components/WowLoading";
 import { logout, type UserSession } from "../lib/auth";
 import { requireRole } from "../lib/authz";
 import { confirmAction } from "../lib/web-utils";
@@ -86,6 +88,7 @@ export default function CadetDashboard() {
   const router = useRouter();
   const [session, setSession] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const headerAnim = useRef(new Animated.Value(0)).current;
   const [today, setToday] = useState<TodayAttendance>({
     am: "ABSENT",
     pm: "ABSENT",
@@ -240,12 +243,19 @@ export default function CadetDashboard() {
     }
   }
 
+  useEffect(() => {
+    if (!loading) {
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading]);
+
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1F3D2B" />
-      </View>
-    );
+    return <WowLoading />;
   }
 
   const standing = getCadetStanding(history.absent);
@@ -263,11 +273,23 @@ export default function CadetDashboard() {
       <StatusBar barStyle="light-content" />
 
       {/* Header with Gradient */}
-      <LinearGradient colors={["#1F3D2B", "#2C533A"]} style={styles.header}>
+      <Animated.View
+        style={{
+          opacity: headerAnim,
+          transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }],
+        }}
+      >
+      <LinearGradient colors={["#0F2016", "#1F3D2B", "#2C533A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity onPress={handleLogout} style={styles.iconBtn}>
-            <LogOut color="rgba(255,255,255,0.7)" size={20} />
-          </TouchableOpacity>
+          <View style={styles.topActionsRow}>
+            <TouchableOpacity onPress={handleLogout} style={styles.iconBtn}>
+              <LogOut color="rgba(255,255,255,0.7)" size={20} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn}>
+              <Bell color="rgba(255,255,255,0.7)" size={20} />
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.unitHeaderGroup}>
             <View style={styles.headerLogoCircle}>
               <Image
@@ -295,9 +317,6 @@ export default function CadetDashboard() {
               />
             </View>
           </View>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Bell color="rgba(255,255,255,0.7)" size={20} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.profileSection}>
@@ -325,6 +344,7 @@ export default function CadetDashboard() {
           </View>
         </View>
       </LinearGradient>
+      </Animated.View>
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -402,7 +422,12 @@ export default function CadetDashboard() {
 
         {/* History: total present / absences / standing */}
         <Text style={styles.sectionTitle}>History</Text>
-        <View style={styles.statsRow}>
+        <LinearGradient
+          colors={["#0F2016", "#1F3D2B"]}
+          style={styles.statsRow}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: "#4CAF50" }]}>
               {history.present}
@@ -410,13 +435,13 @@ export default function CadetDashboard() {
             <Text style={styles.statLabel}>PRESENT</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: "#EF6C00" }]}>
+            <Text style={[styles.statValue, { color: "#FFB74D" }]}>
               {history.late}
             </Text>
             <Text style={styles.statLabel}>LATE</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: "#E53935" }]}>
+            <Text style={[styles.statValue, { color: "#EF5350" }]}>
               {history.absent}
             </Text>
             <Text style={styles.statLabel}>ABSENCES</Text>
@@ -429,7 +454,7 @@ export default function CadetDashboard() {
             </Text>
             <Text style={styles.statLabel}>STANDING</Text>
           </View>
-        </View>
+        </LinearGradient>
 
         <View style={styles.sectionHeader}>
           <Calendar size={18} color="#1F3D2B" style={{ marginRight: 8 }} />
@@ -548,10 +573,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 30,
   },
   headerTop: {
+    marginBottom: 20,
+  },
+  topActionsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 25,
+    marginBottom: 10,
   },
   headerBrand: {
     color: "#FFF",
@@ -561,10 +589,10 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   unitHeaderGroup: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    width: "100%",
   },
   headerLogoCircle: {
     width: 48,
@@ -588,8 +616,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   unitHeaderCol: {
-    flex: 1,
+    flexShrink: 1,
     alignItems: "center",
+    paddingHorizontal: 4,
   },
   unitHeaderTopText: {
     color: "#D4A353",
@@ -728,30 +757,28 @@ const styles = StyleSheet.create({
 
   statsRow: {
     flexDirection: "row",
-    backgroundColor: "#FFF",
     borderRadius: 20,
     paddingVertical: 20,
     marginBottom: 30,
-    borderWidth: 1,
-    borderColor: "#EAECE6",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    overflow: "hidden",
+    shadowColor: "#1F3D2B",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 8,
   },
   statItem: {
     flex: 1,
     alignItems: "center",
     borderRightWidth: 1,
-    borderRightColor: "#F0F2ED",
+    borderRightColor: "rgba(255,255,255,0.1)",
   },
-  statValue: { fontSize: 18, fontWeight: "900", marginBottom: 4 },
+  statValue: { fontSize: 20, fontWeight: "900", marginBottom: 4 },
   statLabel: {
     fontSize: 9,
-    color: "#A0B3A6",
+    color: "rgba(212,163,83,0.9)",
     fontWeight: "900",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
 
   announcementCard: {

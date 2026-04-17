@@ -94,16 +94,16 @@ export async function login(
   const normalizedId = idNumber.trim();
   const password_hash = await hashPassword(password);
 
-  const { data, error } = await supabase
+  // Step 1: Check if the ID number exists at all
+  const { data: idRow, error: idError } = await supabase
     .from("users")
-    .select("id, id_number, full_name, role, platoon, qr_token, photo_url, is_active")
+    .select("id, id_number, full_name, role, platoon, qr_token, photo_url, password_hash, is_active")
     .eq("id_number", normalizedId)
-    .eq("password_hash", password_hash)
     .maybeSingle();
 
-  if (error) {
-    console.error("Supabase Login Error:", error);
-    if (isLikelyNetworkError(error.message)) {
+  if (idError) {
+    console.error("Supabase Login Error:", idError);
+    if (isLikelyNetworkError(idError.message)) {
       const offlineCache = await readOfflineAuthCache();
       const cached = offlineCache[normalizedId];
       if (cached && cached.password_hash === password_hash) {
@@ -116,63 +116,51 @@ export async function login(
           "Offline login unavailable for this account. Login once online to enable offline mode.",
       };
     }
-    return { success: false, error: `Connection Error: ${error.message}` };
+    return { success: false, error: `Connection Error: ${idError.message}` };
   }
 
-  // Block deactivated accounts from logging in
-  if (data && data.is_active === false) {
+  // Dev bootstrap fallback
+  if (!idRow && normalizedId === "admin" && password === "admin123") {
+    const fallbackAdmin: UserSession = {
+      id: "bootstrap-admin",
+      id_number: "admin",
+      full_name: "S1 Admin",
+      role: "admin",
+      platoon: null,
+      qr_token: null,
+      photo_url: null,
+    };
+    await storage.setItem(SESSION_KEY, JSON.stringify(fallbackAdmin));
+    return { success: true, user: fallbackAdmin };
+  }
+
+  // Step 2: ID not found at all
+  if (!idRow) {
+    return { success: false, error: "wrong_id" };
+  }
+
+  // Step 3: Account deactivated
+  if (idRow.is_active === false) {
     return {
       success: false,
-      error:
-        "Your account has been deactivated. Contact your commanding officer.",
+      error: "Your account has been deactivated. Contact your commanding officer.",
     };
   }
 
-  if (!data) {
-    // Compatibility fallback: older imports may have stored an unusable password hash.
-    // Allow cadets to log in with default password format while DB records are repaired.
-    const { data: fallbackRow, error: fallbackError } = await supabase
-      .from("users")
-      .select("id, id_number, full_name, role, platoon, qr_token, photo_url")
-      .eq("id_number", normalizedId)
-      .maybeSingle();
+  // Step 4: Check password
+  const passwordMatches = idRow.password_hash === password_hash;
 
-    if (!fallbackError && fallbackRow) {
-      const defaultPassword = `ROTC${normalizedId.slice(-4)}`;
-      const canUseFallback =
-        fallbackRow.role === "cadet" && password === defaultPassword;
-
-      if (canUseFallback) {
-        const fallbackUser: UserSession = {
-          id: fallbackRow.id,
-          id_number: fallbackRow.id_number,
-          full_name: fallbackRow.full_name,
-          role: fallbackRow.role,
-          platoon: fallbackRow.platoon ?? null,
-          qr_token: fallbackRow.qr_token ?? null,
-          photo_url: fallbackRow.photo_url ?? null,
-        };
-        await storage.setItem(SESSION_KEY, JSON.stringify(fallbackUser));
-        return { success: true, user: fallbackUser };
-      }
+  if (!passwordMatches) {
+    // Compatibility fallback for cadets with default password
+    const defaultPassword = `ROTC${normalizedId.slice(-4)}`;
+    const canUseFallback = idRow.role === "cadet" && password === defaultPassword;
+    if (!canUseFallback) {
+      return { success: false, error: "wrong_password" };
     }
-
-    // Dev bootstrap fallback when remote DB has no seeded users yet.
-    if (normalizedId === "admin" && password === "admin123") {
-      const fallbackAdmin: UserSession = {
-        id: "bootstrap-admin",
-        id_number: "admin",
-        full_name: "S1 Admin",
-        role: "admin",
-        platoon: null,
-        qr_token: null,
-        photo_url: null,
-      };
-      await storage.setItem(SESSION_KEY, JSON.stringify(fallbackAdmin));
-      return { success: true, user: fallbackAdmin };
-    }
-    return { success: false, error: "Account not found." };
   }
+
+  // Step 5: Return null (should not reach here) — kept for safety
+  const data = idRow;
 
   const user: UserSession = {
     id: data.id,

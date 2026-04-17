@@ -32,6 +32,7 @@ export default function QRScanner() {
   } | null>(null);
   const [authorized, setAuthorized] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [activeSessionType, setActiveSessionType] = useState<string | null>(null);
 
   // Request permission on mount
   useEffect(() => {
@@ -56,6 +57,11 @@ export default function QRScanner() {
 
   useEffect(() => {
     getPendingCount().then(setPendingCount).catch(() => {});
+    getCurrentScannableSession().then((session) => {
+      if (session) {
+        setActiveSessionType(session.session_type);
+      }
+    }).catch(() => {});
   }, []);
 
   if (!authorized) {
@@ -167,7 +173,7 @@ export default function QRScanner() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
             <ArrowLeft color="#FFF" size={24} />
           </TouchableOpacity>
-          <Text style={styles.title}>SCANNER</Text>
+          <Text style={styles.title}>SCANNER {activeSessionType ? `(${activeSessionType})` : ""}</Text>
           <View style={{ width: 40 }} />
         </View>
 
