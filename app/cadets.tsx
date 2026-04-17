@@ -686,6 +686,12 @@ const styles = StyleSheet.create({
     minWidth: 120,
     alignItems: "center",
   },
+  confirmBtnDanger: {
+    backgroundColor: "#A52A2A",
+  },
+  confirmBtnSafe: {
+    backgroundColor: "#2E7D32",
+  },
   confirmText: { color: "#FFF", fontWeight: "800" },
   genderLabel: {
     fontSize: 11,
