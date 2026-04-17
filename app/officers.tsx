@@ -32,6 +32,7 @@ import {
   shouldSilenceRemoteFailureAlerts,
 } from "../lib/field-mode";
 import { supabase } from "../lib/supabase";
+import { confirmAction } from "../lib/web-utils";
 
 type OfficerRow = {
   id: string;
@@ -126,76 +127,65 @@ export default function OfficerManagementScreen() {
 
   const handleResetPassword = async (officer: OfficerRow) => {
     const defaultPassword = buildDefaultPassword(officer.id_number);
-    Alert.alert(
+    const confirmed = await confirmAction(
       "Reset Officer Password",
-      `Reset password for ${officer.full_name} to default format?\n\nNew password: ${defaultPassword}`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setWorkingId(officer.id);
-              const passwordHash = await hashPassword(defaultPassword);
-              const { error } = await supabase
-                .from("users")
-                .update({ password_hash: passwordHash })
-                .eq("id", officer.id);
-              if (error) throw error;
-              Alert.alert(
-                "Password Reset",
-                `${officer.full_name}'s password was reset.\nNew password: ${defaultPassword}`,
-              );
-            } catch (err: any) {
-              alertRemoteFailure(
-                "Reset Failed",
-                err?.message || "Could not reset officer password.",
-              );
-            } finally {
-              setWorkingId(null);
-            }
-          },
-        },
-      ],
+      `Reset password for ${officer.full_name} to default format?\n\nNew password: ${defaultPassword}`
     );
+    if (confirmed) {
+      try {
+        setWorkingId(officer.id);
+        const passwordHash = await hashPassword(defaultPassword);
+        const { error } = await supabase
+          .from("users")
+          .update({ password_hash: passwordHash })
+          .eq("id", officer.id);
+        if (error) throw error;
+        Alert.alert(
+          "Password Reset",
+          `${officer.full_name}'s password was reset.\nNew password: ${defaultPassword}`,
+        );
+      } catch (err: any) {
+        alertRemoteFailure(
+          "Reset Failed",
+          err?.message || "Could not reset officer password.",
+        );
+      } finally {
+        setWorkingId(null);
+      }
+    }
   };
 
   const handleDeleteOfficer = async (officer: OfficerRow) => {
-    Alert.alert(
+    const confirmed = await confirmAction(
       "Delete Officer Account",
-      `Permanently delete ${officer.full_name} (${officer.id_number})?\n\nThis will remove their account entirely. You can re-add them as a cadet later if needed.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setWorkingId(officer.id);
-            const { error } = await supabase
-              .from("users")
-              .delete()
-              .eq("id", officer.id);
-
-            if (error) {
-              alertRemoteFailure(
-                "Delete Failed",
-                error.message,
-              );
-              setWorkingId(null);
-              return;
-            }
-
-            setOfficers((prev) => prev.filter((row) => row.id !== officer.id));
-            setWorkingId(null);
-            Alert.alert(
-              "Deleted",
-              `${officer.full_name} has been removed from the system.`,
-            );
-          },
-        },
-      ],
+      `Delete ${officer.full_name} (${officer.id_number})?\n\nThis will remove them from the list and disable their access. History is preserved.`
     );
+    if (confirmed) {
+      setWorkingId(officer.id);
+      // Use Soft Delete (consistent with cadets)
+      const { error } = await supabase
+        .from("users")
+        .update({ 
+          is_deleted: true,
+          is_active: false,
+          password_hash: null,
+          qr_token: null
+        })
+        .eq("id", officer.id);
+
+      if (error) {
+        alertRemoteFailure("Delete Failed", error.message);
+        setWorkingId(null);
+        return;
+      }
+
+      setOfficers((prev) => prev.filter((row) => row.id !== officer.id));
+      setWorkingId(null);
+      Alert.alert(
+        "Success",
+        `${officer.full_name} has been removed.`
+      );
+    }
   };
 
   const handleAddOfficer = async () => {

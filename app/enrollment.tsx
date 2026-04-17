@@ -14,10 +14,13 @@ import {
   Text,
   TouchableOpacity,
   View,
+  View,
   Alert,
+  Platform,
 } from "react-native";
 import { alertRemoteFailure } from "../lib/field-mode";
 import { requireRole } from "../lib/authz";
+import { downloadFileWeb } from "../lib/web-utils";
 import {
   generateOfficerIdNumber,
   importFromFile,
@@ -63,7 +66,6 @@ export default function BulkEnrollment() {
 
   const downloadTemplate = async () => {
     try {
-      const fs = FileSystem as any;
       const cadetTemplate = [
         "ID Number,Full Name,Platoon,Year Level",
         "2025-0001,JUAN DELA CRUZ,Alpha,2025-2026",
@@ -73,7 +75,15 @@ export default function BulkEnrollment() {
         "JUAN DELA CRUZ,Platoon Leader,3rd Year",
       ].join("\n");
       const content = importMode === "cadet" ? cadetTemplate : officerTemplate;
-      const filePath = `${fs.cacheDirectory}rotc-import-template-${importMode}.csv`;
+      const filename = `rotc-import-template-${importMode}.csv`;
+
+      if (Platform.OS === "web") {
+        downloadFileWeb(filename, content);
+        return;
+      }
+
+      const fs = FileSystem as any;
+      const filePath = `${fs.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(filePath, content, {
         encoding: fs.EncodingType.UTF8,
       });
@@ -113,8 +123,15 @@ export default function BulkEnrollment() {
       })
       .join("\n");
     const csvContent = `${csvHeader}${csvRows}\n`;
+    const filename = `rotc-credentials-${Date.now()}.csv`;
+
+    if (Platform.OS === "web") {
+      downloadFileWeb(filename, csvContent);
+      return;
+    }
+
     const fs = FileSystem as any;
-    const filePath = `${fs.cacheDirectory}rotc-credentials-${Date.now()}.csv`;
+    const filePath = `${fs.cacheDirectory}${filename}`;
     await FileSystem.writeAsStringAsync(filePath, csvContent, { encoding: fs.EncodingType.UTF8 });
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(filePath, {

@@ -31,6 +31,7 @@ import {
   shouldSilenceRemoteFailureAlerts,
 } from "../lib/field-mode";
 import { supabase } from "../lib/supabase";
+import { confirmAction } from "../lib/web-utils";
 
 type CadetRow = {
   id: string;
@@ -96,85 +97,72 @@ export default function CadetRegistry() {
   };
 
   // Soft-deactivate (DROP) or re-activate (RECOVER) a cadet
-  const handleToggleActive = (cadet: CadetRow) => {
+  const handleToggleActive = async (cadet: CadetRow) => {
     if (currentUser?.role !== "admin") {
       Alert.alert("Not allowed", "Only Admin can update cadet status.");
       return;
     }
     const isDropping = cadet.is_active;
-    Alert.alert(
+    const confirmed = await confirmAction(
       isDropping ? "Drop Cadet" : "Re-activate Cadet",
       isDropping
         ? `Mark ${cadet.full_name} as DROPPED?\n\nTheir attendance history is preserved. You can re-activate them anytime if they return.`
-        : `Re-activate ${cadet.full_name}?\n\nThey will be restored as an active cadet and can scan QR again.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: isDropping ? "Drop" : "Re-activate",
-          style: isDropping ? "destructive" : "default",
-          onPress: async () => {
-            setWorkingId(cadet.id);
-            const { error } = await supabase
-              .from("users")
-              .update({ is_active: !cadet.is_active })
-              .eq("id", cadet.id);
-
-            if (error) {
-              alertRemoteFailure("Update Failed", error.message);
-              setWorkingId(null);
-              return;
-            }
-
-            setCadets((prev) =>
-              prev.map((row) =>
-                row.id === cadet.id ? { ...row, is_active: !cadet.is_active } : row,
-              ),
-            );
-            setWorkingId(null);
-          },
-        },
-      ],
+        : `Re-activate ${cadet.full_name}?\n\nThey will be restored as an active cadet and can scan QR again.`
     );
+
+    if (confirmed) {
+      setWorkingId(cadet.id);
+      const { error } = await supabase
+        .from("users")
+        .update({ is_active: !cadet.is_active })
+        .eq("id", cadet.id);
+
+      if (error) {
+        alertRemoteFailure("Update Failed", error.message);
+        setWorkingId(null);
+        return;
+      }
+
+      setCadets((prev) =>
+        prev.map((row) =>
+          row.id === cadet.id ? { ...row, is_active: !cadet.is_active } : row,
+        ),
+      );
+      setWorkingId(null);
+    }
   };
 
   // Soft-delete: hides cadet from registry and disables login, but preserves history.
-  const handleDeleteCadet = (cadet: CadetRow) => {
+  const handleDeleteCadet = async (cadet: CadetRow) => {
     if (currentUser?.role !== "admin") {
       Alert.alert("Not allowed", "Only Admin can delete cadet accounts.");
       return;
     }
-    Alert.alert(
+    const confirmed = await confirmAction(
       "Delete Cadet Account",
-      `Delete ${cadet.full_name}?\n\nThis will remove them from the registry and disable QR/login. Attendance history will be preserved.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setWorkingId(cadet.id);
-            const { error } = await supabase
-              .from("users")
-              .update({
-                is_deleted: true,
-                is_active: false,
-                password_hash: null,
-                qr_token: null,
-              })
-              .eq("id", cadet.id);
-
-            if (error) {
-              alertRemoteFailure("Delete Failed", error.message);
-              setWorkingId(null);
-              return;
-            }
-
-            setCadets((prev) => prev.filter((row) => row.id !== cadet.id));
-            setWorkingId(null);
-          },
-        },
-      ],
+      `Delete ${cadet.full_name}?\n\nThis will remove them from the registry and disable QR/login. Attendance history will be preserved.`
     );
+    if (confirmed) {
+      setWorkingId(cadet.id);
+      const { error } = await supabase
+        .from("users")
+        .update({
+          is_deleted: true,
+          is_active: false,
+          password_hash: null,
+          qr_token: null,
+        })
+        .eq("id", cadet.id);
+
+      if (error) {
+        alertRemoteFailure("Delete Failed", error.message);
+        setWorkingId(null);
+        return;
+      }
+
+      setCadets((prev) => prev.filter((row) => row.id !== cadet.id));
+      setWorkingId(null);
+    }
   };
 
   const filteredCadets = useMemo(() => {

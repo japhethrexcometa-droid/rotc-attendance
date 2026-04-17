@@ -49,6 +49,7 @@ import {
   subscribeFieldMode,
 } from "../lib/field-mode";
 import { supabase } from "../lib/supabase";
+import { confirmAction } from "../lib/web-utils";
 
 export default function CommanderDashboard() {
   const router = useRouter();
@@ -141,18 +142,15 @@ export default function CommanderDashboard() {
   }, [router]);
 
   const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to end your session?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          await logout();
-          router.replace("/");
-        },
-      },
-    ]);
+    const confirmed = await confirmAction(
+      "Logout",
+      "Are you sure you want to end your session?"
+    );
+    if (confirmed) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await logout();
+      router.replace("/");
+    }
   };
 
   const handleAction = (route: string) => {

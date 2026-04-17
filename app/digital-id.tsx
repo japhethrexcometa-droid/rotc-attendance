@@ -217,10 +217,23 @@ export default function DigitalIDScreen() {
   const handleDownload = async () => {
     try {
       if (Platform.OS === "web") {
+        // Log the event for debugging
+        console.log("Triggering Web Print/Download...");
+        
         // Special Web Fallback: Use native browser print for maximum reliability
         // We trigger the print dialog which allows "Save as PDF" or "Print"
         window.print();
+        
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        
+        // If they are in a restricted browser (like Messenger), show a tip
+        const isMessenger = /FBAN|FBAV|Messenger/i.test(navigator.userAgent);
+        if (isMessenger) {
+          Alert.alert(
+            "Download Tip", 
+            "In-app browsers (like Messenger) might block downloads. If nothing happens, tap the 3 dots (...) in the corner and choose 'Open in Chrome/Safari'."
+          );
+        }
         return;
       }
 
@@ -1125,14 +1138,32 @@ const styles = StyleSheet.create({
   },
   shareBtnText: { color: "#1F3D2B", fontWeight: "800", fontSize: 15 },
   "@media print": {
-    safeArea: { backgroundColor: "#FFF", paddingTop: 0 },
+    safeArea: {
+      backgroundColor: "#FFF",
+      padding: 0,
+      margin: 0,
+    },
     header: { display: "none" },
-    instruction: { display: "none" },
-    publicUploadCard: { display: "none" },
+    publicContent: { padding: 0, margin: 0, backgroundColor: "#FFF" },
+    searchSection: { display: "none" },
+    resultsSection: { display: "none" },
+    footer: { display: "none" },
+    cardWrapper: {
+      padding: 0,
+      margin: 0,
+      alignSelf: "center",
+      marginTop: 50,
+      borderWidth: 0,
+      shadowOpacity: 0,
+    },
+    container: { backgroundColor: "#FFF" },
+    backBtn: { display: "none" },
     downloadBtn: { display: "none" },
     shareBtn: { display: "none" },
-    cardScrollContent: { padding: 0 },
-    container: { padding: 0 },
-    idCardContainer: { transform: [{ scale: 1.2 }], marginTop: 50 },
+    viewShotContainer: {
+      borderWidth: 0,
+      elevation: 0,
+      shadowOpacity: 0,
+    },
   },
 });
