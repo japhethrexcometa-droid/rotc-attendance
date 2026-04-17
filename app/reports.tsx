@@ -331,21 +331,39 @@ export default function DutyReports() {
         );
       });
 
-      // 2. Load attendance WITH gender and school
-      const { data: attendanceRows, error: attendanceError } = await supabase
-        .from("attendance")
-        .select(
-          `
-          session_id,
-          cadet_id,
-          status,
-          scan_time,
-          cadet:users!attendance_cadet_id_fkey(full_name, id_number, platoon, gender, school, role)
-        `,
-        );
+      // 2. Load attendance WITH gender and school using auto-pagination to handle many hundreds safely
+      let allAttendanceRows: any[] = [];
+      let fetchMore = true;
+      let from = 0;
+      const step = 1000;
+      
+      while (fetchMore) {
+        const { data: chunk, error: attendanceError } = await supabase
+          .from("attendance")
+          .select(
+            `
+            session_id,
+            cadet_id,
+            status,
+            scan_time,
+            cadet:users!attendance_cadet_id_fkey(full_name, id_number, platoon, gender, school, role)
+          `,
+          )
+          .range(from, from + step - 1);
 
-      if (attendanceError || !attendanceRows) {
-        throw new Error("Could not fetch attendance records.");
+        if (attendanceError) {
+          throw new Error(`Could not fetch attendance records: ${attendanceError.message}`);
+        }
+        
+        if (chunk && chunk.length > 0) {
+          allAttendanceRows = allAttendanceRows.concat(chunk);
+          from += step;
+          if (chunk.length < step) {
+            fetchMore = false; // reached the end
+          }
+        } else {
+          fetchMore = false;
+        }
       }
 
       const scoreForStatus = (status: string): string => {
@@ -380,7 +398,7 @@ export default function DutyReports() {
 
       const cadetMap = new Map<string, GradeRow>();
       const officerMap = new Map<string, GradeRow>();
-      for (const row of attendanceRows as any[]) {
+      for (const row of allAttendanceRows) {
         const cadetId = String(row.cadet_id ?? "");
         if (!cadetId) continue;
         const cadetObj = Array.isArray(row.cadet) ? row.cadet[0] : row.cadet;
@@ -770,18 +788,21 @@ export default function DutyReports() {
       // ensure closed sessions still get complete records.
       await autoMarkAbsents(session.id);
     }
-    const { data, error } = await supabase
+    const { data: data, error } = await supabase
       .from("attendance")
       .select(
         `
         id,
         status,
+        notes,
         scan_time,
-        cadet:users!attendance_cadet_id_fkey(full_name, id_number, platoon)
+        timestamp,
+        cadet:users!attendance_cadet_id_fkey(id, id_number, full_name, platoon)
       `,
       )
       .eq("session_id", session.id)
-      .order("scan_time", { ascending: false });
+      .order("scan_time", { ascending: false })
+      .limit(5000);
 
     if (error) {
       const cached = await getCachedSessionRecords(session.id);
