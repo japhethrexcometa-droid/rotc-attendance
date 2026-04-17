@@ -23,6 +23,7 @@ import { downloadFileWeb } from "../lib/web-utils";
 import {
   generateOfficerIdNumber,
   importFromFile,
+  importFromParsedRows,
   ImportMode,
   parseExcel,
 } from "../lib/import-service";
@@ -179,10 +180,11 @@ export default function BulkEnrollment() {
 
     setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     try {
-      if (!fileUri) throw new Error("No source file selected.");
-      const result = await importFromFile(fileUri, importMode);
+      if (parsedData.length === 0) throw new Error("No data to enroll.");
+      const result = await importFromParsedRows(parsedData, importMode);
       const officerSummary =
         importMode === "officer"
           ? formatOfficerRoleSummary(parsedData, result.insertedIdNumbers)

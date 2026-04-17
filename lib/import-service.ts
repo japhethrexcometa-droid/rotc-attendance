@@ -437,11 +437,10 @@ export async function batchInsertOnly(
   return result;
 }
 
-export async function importFromFile(
-  fileUri: string,
+export async function importFromParsedRows(
+  rows: (CadetExcelRow | OfficerExcelRow)[],
   mode: ImportMode = "cadet",
 ): Promise<ImportResult> {
-  const { rows, errors: parseErrors } = await parseExcel(fileUri, mode);
   const credentials =
     mode === "cadet"
       ? await Promise.all((rows as CadetExcelRow[]).map(generateCredentials))
@@ -450,10 +449,18 @@ export async function importFromFile(
         );
 
   const result = await batchInsertOnly(credentials);
+  return result;
+}
+
+export async function importFromFile(
+  fileUri: string,
+  mode: ImportMode = "cadet",
+): Promise<ImportResult> {
+  const { rows, errors: parseErrors } = await parseExcel(fileUri, mode);
+  const result = await importFromParsedRows(rows, mode);
 
   return {
     ...result,
     errors: [...parseErrors, ...result.errors],
-    credentialsReport: result.credentialsReport,
   };
 }
