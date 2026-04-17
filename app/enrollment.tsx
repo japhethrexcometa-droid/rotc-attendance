@@ -162,7 +162,7 @@ export default function BulkEnrollment() {
       setFileName(file.name);
       setFileUri(file.uri);
 
-      const { rows, errors } = await parseExcel(file.uri, importMode);
+      const { rows, errors } = await parseExcel(file, importMode);
       if (errors.length > 0) {
         Alert.alert("Validation Notes", errors.slice(0, 5).join("\n"));
       }

@@ -1,6 +1,7 @@
 import * as Crypto from "expo-crypto";
 import * as FileSystem from "expo-file-system/legacy";
 import * as XLSX from "xlsx";
+import { Platform } from "react-native";
 import { supabase } from "./supabase";
 
 // Types
@@ -135,12 +136,40 @@ function parseCsvRows(content: string): string[][] {
     .map(parseCsvLine);
 }
 
-async function readSpreadsheetRows(fileUri: string): Promise<string[][]> {
-  const lowerUri = fileUri.toLowerCase();
+async function readSpreadsheetRows(asset: { uri: string; name: string; file?: any }): Promise<string[][]> {
+  const lowerUri = asset.name.toLowerCase();
+
+  if (Platform.OS === "web") {
+    if (lowerUri.endsWith(".xlsx") || lowerUri.endsWith(".xls")) {
+      let arrayBuffer;
+      if (asset.file) arrayBuffer = await asset.file.arrayBuffer();
+      else arrayBuffer = await (await fetch(asset.uri)).arrayBuffer();
+      
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const firstSheet = workbook.SheetNames[0];
+      if (!firstSheet) throw new Error("Excel file has no sheets.");
+      const sheet = workbook.Sheets[firstSheet];
+      const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
+        header: 1,
+        blankrows: false,
+        defval: "",
+        raw: false,
+      });
+      return rows
+        .map((row) => row.map((cell) => normalizeCadetText(String(cell ?? ""))))
+        .filter((row) => row.some((cell) => cell.length > 0));
+    } else {
+      let content;
+      if (asset.file) content = await asset.file.text();
+      else content = await (await fetch(asset.uri)).text();
+      return parseCsvRows(content);
+    }
+  }
+
   const fs = FileSystem as any;
 
   if (lowerUri.endsWith(".xlsx") || lowerUri.endsWith(".xls")) {
-    const base64 = await FileSystem.readAsStringAsync(fileUri, {
+    const base64 = await FileSystem.readAsStringAsync(asset.uri, {
       encoding: fs.EncodingType.Base64,
     });
     const workbook = XLSX.read(base64, { type: "base64" });
@@ -158,28 +187,34 @@ async function readSpreadsheetRows(fileUri: string): Promise<string[][]> {
       .filter((row) => row.some((cell) => cell.length > 0));
   }
 
-  const content = await FileSystem.readAsStringAsync(fileUri, {
+  const content = await FileSystem.readAsStringAsync(asset.uri, {
     encoding: fs.EncodingType.UTF8,
   });
   return parseCsvRows(content);
 }
 
 export async function parseExcel(
-  fileUri: string,
+  asset: { uri: string; name: string; file?: any; size?: number },
   mode: ImportMode = "cadet",
 ): Promise<{ rows: (CadetExcelRow | OfficerExcelRow)[]; errors: string[] }> {
   const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB safety limit
   const MAX_ROWS = 1000; // aligned with target batch range
 
-  const fileInfo = await FileSystem.getInfoAsync(fileUri);
-  if (!fileInfo.exists) {
-    throw new Error("Selected file does not exist.");
-  }
-  if (typeof fileInfo.size === "number" && fileInfo.size > MAX_FILE_SIZE_BYTES) {
-    throw new Error("File is too large. Please upload up to 5MB only.");
+  if (Platform.OS !== "web") {
+    const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+    if (!fileInfo.exists) {
+      throw new Error("Selected file does not exist.");
+    }
+    if (typeof fileInfo.size === "number" && fileInfo.size > MAX_FILE_SIZE_BYTES) {
+      throw new Error("File is too large. Please upload up to 5MB only.");
+    }
+  } else {
+    if (typeof asset.size === "number" && asset.size > MAX_FILE_SIZE_BYTES) {
+      throw new Error("File is too large. Please upload up to 5MB only.");
+    }
   }
 
-  const matrix = await readSpreadsheetRows(fileUri);
+  const matrix = await readSpreadsheetRows(asset);
   if (matrix.length < 2) {
     throw new Error("File is empty or missing data rows.");
   }
@@ -453,10 +488,10 @@ export async function importFromParsedRows(
 }
 
 export async function importFromFile(
-  fileUri: string,
+  asset: { uri: string; name: string; file?: any; size?: number },
   mode: ImportMode = "cadet",
 ): Promise<ImportResult> {
-  const { rows, errors: parseErrors } = await parseExcel(fileUri, mode);
+  const { rows, errors: parseErrors } = await parseExcel(asset, mode);
   const result = await importFromParsedRows(rows, mode);
 
   return {
