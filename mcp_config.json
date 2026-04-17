@@ -1,0 +1,89 @@
+{
+  "mcpServers": {
+    "n8n": {
+      "command": "npx",
+      "args": ["-y", "n8n-mcp"],
+      "env": {
+        "N8N_API_URL": "https://japhethrex1.app.n8n.cloud",
+        "N8N_API_KEY": "YOUR_N8N_API_KEY",
+        "MCP_MODE": "stdio"
+      },
+      "disabled": false,
+      "disabledTools": [
+        "get_template",
+        "n8n_delete_workflow",
+        "n8n_workflow_versions",
+        "n8n_manage_datatable",
+        "n8n_audit_instance",
+        "n8n_update_full_workflow"
+      ]
+    },
+    "supabase-mcp-server": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "YOUR_SUPABASE_PAT"
+      ],
+      "env": {},
+      "disabledTools": [
+        "search_docs",
+        "list_organizations",
+        "get_organization",
+        "get_cost",
+        "confirm_cost",
+        "restore_project",
+        "pause_project",
+        "create_project",
+        "list_extensions",
+        "list_migrations",
+        "get_advisors",
+        "create_branch",
+        "deploy_edge_function",
+        "get_edge_function",
+        "list_edge_functions",
+        "generate_typescript_types",
+        "list_branches",
+        "rebase_branch",
+        "reset_branch",
+        "merge_branch",
+        "delete_branch",
+        "apply_migration"
+      ]
+    },
+    "github-mcp-server": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_GITHUB_PAT"
+      },
+      "disabled": false,
+      "disabledTools": [
+        "add_comment_to_pending_review",
+        "add_reply_to_pull_request_comment",
+        "assign_copilot_to_issue",
+        "sub_issue_write",
+        "search_users",
+        "search_pull_requests",
+        "request_copilot_review",
+        "pull_request_review_write",
+        "list_tags",
+        "list_issue_types",
+        "get_teams",
+        "get_team_members",
+        "get_tag",
+        "get_release_by_tag",
+        "get_label",
+        "fork_repository"
+      ]
+    }
+  }
+}
