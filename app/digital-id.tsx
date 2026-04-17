@@ -636,8 +636,8 @@ export default function DigitalIDScreen() {
               </Text>
               <View style={styles.messengerSteps}>
                 <Text style={styles.messengerStep}>1️⃣  Tap the <Text style={styles.messengerStepBold}>⋯  (3-dot menu)</Text> in the top corner</Text>
-                <Text style={styles.messengerStep}>2️⃣  Choose <Text style={styles.messengerStepBold}>"Open in Chrome"</Text> or <Text style={styles.messengerStepBold}>"Open in Browser"</Text></Text>
-                <Text style={styles.messengerStep}>3️⃣  Then tap <Text style={styles.messengerStepBold}>"Download / Print-ready PNG"</Text> again</Text>
+                <Text style={styles.messengerStep}>2️⃣  Choose <Text style={styles.messengerStepBold}>&quot;Open in Chrome&quot;</Text> or <Text style={styles.messengerStepBold}>&quot;Open in Browser&quot;</Text></Text>
+                <Text style={styles.messengerStep}>3️⃣  Then tap <Text style={styles.messengerStepBold}>&quot;Download / Print-ready PNG&quot;</Text> again</Text>
               </View>
               <TouchableOpacity
                 style={styles.messengerBannerClose}
