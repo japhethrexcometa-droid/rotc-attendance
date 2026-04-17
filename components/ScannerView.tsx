@@ -1,4 +1,5 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Haptics from "expo-haptics";
 import {
     AlertCircle,
     CheckCircle2,
@@ -56,6 +57,32 @@ export default function ScannerView({ session, scannedBy }: ScannerViewProps) {
   }) => {
     if (scanned) return;
     setScanned(true);
+
+    // Provide instant feedback before processing
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      if (typeof window !== "undefined") {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(880, ctx.currentTime); // A5 note
+          gain.gain.setValueAtTime(0.5, ctx.currentTime);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.1); 
+        }
+      }
+    } catch {}
+
+    setFeedback({
+      color: "orange",
+      icon: "refresh",
+      statusLine: "Processing scan...",
+    });
 
     let result: ScanResult;
     let savedOffline = false;
