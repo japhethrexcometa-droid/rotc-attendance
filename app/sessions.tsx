@@ -173,6 +173,19 @@ export default function SessionManagement() {
         return;
       }
 
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const [cutoffH, cutoffM] = times.cutoff.split(":").map(Number);
+      const cutoffMinutes = (cutoffH || 0) * 60 + (cutoffM || 0);
+
+      if (cutoffMinutes <= currentMinutes) {
+        Alert.alert(
+          "Cutoff Time Expired",
+          "You must set a Cutoff Time that is later than the current time. Otherwise, the system will immediately auto-close the session."
+        );
+        return;
+      }
+
       const payload: {
         session_date: string;
         session_type: SessionType;
