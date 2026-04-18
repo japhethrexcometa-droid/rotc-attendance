@@ -586,7 +586,7 @@ export default function DigitalIDScreen() {
                         }
                         size={180}
                         color="#1F3D2B"
-                        ecl="H"
+                        ecl="M"
                       />
                     </View>
                     <Text style={styles.inlineQrLabel}>ATTENDANCE SCAN QR</Text>
