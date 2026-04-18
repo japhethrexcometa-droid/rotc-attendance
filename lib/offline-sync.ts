@@ -158,6 +158,12 @@ export async function syncPending(): Promise<SyncResult> {
   }
 
   await writeQueue(queue);
+
+  // Notify all listeners that sync completed (so UI can refresh immediately)
+  if (synced > 0) {
+    notifySyncListeners(synced);
+  }
+
   return { synced, failed, errors };
 }
 
@@ -166,21 +172,78 @@ export async function clearSynced(): Promise<void> {
   await writeQueue(queue.filter((r) => !r.synced));
 }
 
+// ── Sync event bus ──────────────────────────────────────────────────────────
+type SyncCallback = (syncedCount: number) => void;
+const syncSubscribers: Set<SyncCallback> = new Set();
+
+function notifySyncListeners(syncedCount: number) {
+  syncSubscribers.forEach((cb) => {
+    try { cb(syncedCount); } catch {}
+  });
+}
+
+/** Subscribe to sync-complete events. Returns unsubscribe function. */
+export function onSyncComplete(cb: SyncCallback): () => void {
+  syncSubscribers.add(cb);
+  return () => { syncSubscribers.delete(cb); };
+}
+
+// ── Start connectivity listener ─────────────────────────────────────────────
+
 export function startSyncListener(): () => void {
-  // NetInfo listener — wired in app/_layout.tsx
-  // Imported lazily to avoid issues in non-RN environments
   let unsubscribe: (() => void) | null = null;
 
-  import("@react-native-community/netinfo").then((NetInfo) => {
-    unsubscribe = NetInfo.default.addEventListener((state) => {
-      if (state.isConnected) {
+  // 1. Try @react-native-community/netinfo (works on native + some web builds)
+  import("@react-native-community/netinfo")
+    .then((NetInfo) => {
+      unsubscribe = NetInfo.default.addEventListener((state) => {
+        if (state.isConnected) {
+          syncPending().catch(() => {});
+          syncPendingSessionMutations().catch(() => {});
+        }
+      });
+    })
+    .catch(() => {
+      // NetInfo not available — web fallback below handles it
+    });
+
+  // 2. Web fallback: listen for browser online event + poll every 15s
+  let webCleanup: (() => void) | null = null;
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    let wasOffline = !navigator.onLine;
+
+    const handleOnline = () => {
+      if (wasOffline) {
+        wasOffline = false;
         syncPending().catch(() => {});
         syncPendingSessionMutations().catch(() => {});
       }
-    });
-  });
+    };
+    const handleOffline = () => { wasOffline = true; };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Also poll every 15s as a safety net
+    const pollId = setInterval(async () => {
+      if (navigator.onLine) {
+        const count = await getPendingCount();
+        if (count > 0) {
+          syncPending().catch(() => {});
+          syncPendingSessionMutations().catch(() => {});
+        }
+      }
+    }, 15000);
+
+    webCleanup = () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      clearInterval(pollId);
+    };
+  }
 
   return () => {
     if (unsubscribe) unsubscribe();
+    if (webCleanup) webCleanup();
   };
 }

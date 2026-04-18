@@ -36,6 +36,7 @@ import {
   getCurrentScannableSession,
   Session,
 } from "../lib/session-manager";
+import { onSyncComplete } from "../lib/offline-sync";
 import { supabase } from "../lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -374,6 +375,14 @@ function ResultsTab({
   useEffect(() => {
     const interval = setInterval(loadAttendance, 10000);
     return () => clearInterval(interval);
+  }, [loadAttendance]);
+
+  // Instant refresh when offline scans sync after WiFi restores
+  useEffect(() => {
+    const unsub = onSyncComplete(() => {
+      loadAttendance();
+    });
+    return unsub;
   }, [loadAttendance]);
 
   const statusColor = (status: string) => {
