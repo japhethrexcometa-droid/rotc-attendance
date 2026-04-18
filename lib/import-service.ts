@@ -418,7 +418,7 @@ export async function batchInsertOnly(
 
     const { data: existingRows, error: existingError } = await supabase
       .from("users")
-      .select("id, id_number")
+      .select("id, id_number, is_deleted")
       .in("id_number", idNumbers);
 
     if (existingError) {
@@ -429,12 +429,18 @@ export async function batchInsertOnly(
       continue;
     }
 
-    const existing = new Set((existingRows ?? []).map((r) => r.id_number));
-    const toInsert = chunk.filter((c) => !existing.has(c.id_number));
-    result.skipped += chunk.length - toInsert.length;
-    if (toInsert.length === 0) continue;
+    // Only skip records that already exist AND are NOT soft-deleted
+    const existingActive = new Set(
+      (existingRows ?? [])
+        .filter((r) => r.is_deleted !== true)
+        .map((r) => r.id_number)
+    );
+    
+    const toUpsert = chunk.filter((c) => !existingActive.has(c.id_number));
+    result.skipped += chunk.length - toUpsert.length;
+    if (toUpsert.length === 0) continue;
 
-    const insertPayload = toInsert.map(({ raw_password, ...dbRow }) => ({
+    const upsertPayload = toUpsert.map(({ raw_password, ...dbRow }) => ({
       ...dbRow,
       id_number: normalizeCadetText(dbRow.id_number),
       full_name: normalizeCadetText(dbRow.full_name),
@@ -445,25 +451,26 @@ export async function batchInsertOnly(
       role: dbRow.role,
       qr_token: dbRow.qr_token || null,
       is_active: true,
+      is_deleted: false, // Ensure they are restored if previously deleted
     }));
 
     const { data, error } = await supabase
       .from("users")
-      .insert(insertPayload)
+      .upsert(upsertPayload, { onConflict: "id_number" })
       .select("id_number");
 
     if (error) {
       result.errors.push(
         `Batch ${Math.floor(i / batchSize) + 1}: ${error.message}`,
       );
-      result.skipped += toInsert.length;
+      result.skipped += toUpsert.length;
     } else {
-      result.inserted += data?.length ?? toInsert.length;
+      result.inserted += data?.length ?? toUpsert.length;
       result.insertedIdNumbers.push(
         ...((data ?? []).map((row) => row.id_number) as string[]),
       );
       result.credentialsReport.push(
-        ...toInsert.map((entry) => ({
+        ...toUpsert.map((entry) => ({
           id_number: entry.id_number,
           full_name: entry.full_name,
           raw_password: entry.raw_password,
