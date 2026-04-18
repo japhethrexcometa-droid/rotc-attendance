@@ -348,8 +348,9 @@ export default function DutyReports() {
             status,
             scan_time,
             cadet:users!attendance_cadet_id_fkey(full_name, id_number, platoon, gender, school, role)
-          `,
+          `
           )
+          .order("id", { ascending: true })
           .range(from, from + step - 1);
 
         if (attendanceError) {
@@ -795,10 +796,8 @@ export default function DutyReports() {
         `
         id,
         status,
-        notes,
         scan_time,
-        timestamp,
-        cadet:users!attendance_cadet_id_fkey(id, id_number, full_name, platoon)
+        cadet:users!attendance_cadet_id_fkey(id_number, full_name, platoon)
       `,
       )
       .eq("session_id", session.id)
@@ -840,7 +839,6 @@ export default function DutyReports() {
       .from("attendance")
       .update({
         status: nextStatus,
-        notes: nextStatus === "excused" ? "Admin override" : null,
       })
       .eq("id", record.id);
 
@@ -993,6 +991,10 @@ export default function DutyReports() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={true}
           />
         )}
       </View>
@@ -1030,6 +1032,10 @@ export default function DutyReports() {
                 data={attendanceRecords}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ paddingBottom: 12 }}
+                initialNumToRender={20}
+                maxToRenderPerBatch={20}
+                windowSize={10}
+                removeClippedSubviews={true}
                 ListEmptyComponent={
                   <Text style={styles.emptyText}>No attendance records.</Text>
                 }
