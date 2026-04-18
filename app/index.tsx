@@ -23,6 +23,7 @@ import {
 } from "../lib/field-mode";
 import { supabase } from "../lib/supabase";
 import WowLoading from "../components/WowLoading";
+import PWAInstallPrompt from "../components/PWAInstallPrompt";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -176,6 +177,11 @@ export default function LoginScreen() {
           <Text style={styles.unitName}>MSU – Zamboanga Sibugay</Text>
           <Text style={styles.title}>ROTC Attendance System</Text>
           <Text style={styles.subtitle}>Department of Military Science and Tactics</Text>
+        </Animated.View>
+
+        {/* Install Prompt (Only shows if on Web and not installed) */}
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <PWAInstallPrompt />
         </Animated.View>
 
         {/* Login Card */}

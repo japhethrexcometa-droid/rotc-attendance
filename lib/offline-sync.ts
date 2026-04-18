@@ -136,32 +136,45 @@ export async function syncPending(): Promise<SyncResult> {
   let failed = 0;
   const errors: string[] = [];
 
-  for (const record of pending) {
-    const { error } = await supabase.from("attendance").upsert(
-      {
-        cadet_id: record.cadet_id,
-        session_id: record.session_id,
-        status: record.status,
-        scan_time: record.scan_time,
-        scanned_by: record.scanned_by,
-      },
-      { onConflict: "cadet_id,session_id" },
-    );
-
-    if (error) {
-      failed++;
-      errors.push(error.message);
-    } else {
-      record.synced = true;
-      synced++;
-    }
+  if (pending.length === 0) {
+    return { synced, failed, errors };
   }
 
-  await writeQueue(queue);
+  // Chunked Syncing: Process in batches of 50 to prevent rate-limits / timeouts
+  const BATCH_SIZE = 50;
+  
+  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+    const chunk = pending.slice(i, i + BATCH_SIZE);
+    
+    // Map offline records to Supabase rows
+    const rowsToUpsert = chunk.map((r) => ({
+      cadet_id: r.cadet_id,
+      session_id: r.session_id,
+      status: r.status,
+      scan_time: r.scan_time,
+      scanned_by: r.scanned_by,
+    }));
 
-  // Notify all listeners that sync completed (so UI can refresh immediately)
-  if (synced > 0) {
-    notifySyncListeners(synced);
+    const { error } = await supabase
+      .from("attendance")
+      .upsert(rowsToUpsert, { onConflict: "cadet_id,session_id" });
+
+    if (error) {
+      failed += chunk.length;
+      errors.push(error.message);
+      // Wait briefly before attempting the next chunk to avoid choking
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } else {
+      chunk.forEach((r) => { r.synced = true; });
+      synced += chunk.length;
+    }
+    
+    // Periodically save the queue so if it crashes midway, we don't restart from 0
+    await writeQueue(queue);
+    
+    if (synced > 0) {
+      notifySyncListeners(synced);
+    }
   }
 
   return { synced, failed, errors };
