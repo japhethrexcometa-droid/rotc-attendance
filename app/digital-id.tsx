@@ -312,20 +312,18 @@ export default function DigitalIDScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => {
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace("/");
-              }
-            }}
-            style={styles.backBtn}
-            activeOpacity={0.6}
-            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-          >
-            <ArrowLeft color="#111" size={24} />
-          </TouchableOpacity>
+          {router.canGoBack() ? (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backBtn}
+              activeOpacity={0.6}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+              <ArrowLeft color="#111" size={24} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 24 }} />
+          )}
           <Text style={styles.headerTitle}>ROTC ID Lookup</Text>
           <View style={{ width: 24 }} />
         </View>
@@ -694,7 +692,7 @@ export default function DigitalIDScreen() {
           <View style={localStyles.modalContent}>
              <Text style={localStyles.modalTitle}>Verify Your Identity</Text>
              <Text style={localStyles.modalDesc}>
-               Please enter your ROTC Account password to confirm it's really you uploading this photo.
+               Please enter your ROTC Account password to confirm it&apos;s really you uploading this photo.
              </Text>
              
              {uploadPasswordTarget?.error ? (
@@ -741,9 +739,18 @@ export default function DigitalIDScreen() {
                       setUploadPasswordTarget(null);
                       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     } catch (err: any) {
+                      const rawMsg = err?.message || "";
+                      let friendlyMsg = "Failed to upload photo. Please check password.";
+                      if (/row.level security/i.test(rawMsg) || /policy/i.test(rawMsg)) {
+                        friendlyMsg = "Upload temporarily unavailable. Please try again in a moment.";
+                      } else if (/verification failed/i.test(rawMsg)) {
+                        friendlyMsg = "Wrong password. Please enter your correct ROTC account password.";
+                      } else if (rawMsg) {
+                        friendlyMsg = rawMsg;
+                      }
                       setUploadPasswordTarget({
                         ...uploadPasswordTarget,
-                        error: err.message || "Failed to upload photo. Please check password."
+                        error: friendlyMsg,
                       });
                     } finally {
                       setIsUploading(false);
