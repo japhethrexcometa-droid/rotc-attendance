@@ -377,10 +377,13 @@ export default function DutyReports() {
 
       const escXml = (v: string | number | null | undefined): string =>
         String(v ?? "")
+          // Strip control characters that are illegal in XML (except tab=9, LF=10, CR=13)
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;");
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
 
       const sessionIndexById = new Map<string, number>();
       sortedSessions.forEach((s, idx) =>
@@ -746,17 +749,20 @@ export default function DutyReports() {
   ${allSheets.join("\n")}
 </Workbook>`;
 
-      // Note: this export is Excel 2003 XML. Using .xls prompts Excel to open it natively, even with XML tags.
+      // UTF-8 BOM ensures Excel reads the file without encoding issues.
+      // SpreadsheetML (.xls) is Excel 2003 XML format — valid, safe, multi-sheet.
+      const BOM = "\uFEFF";
       const fileName = `ROTC_Attendance_${Date.now()}.xls`;
+      const finalContent = BOM + xmlContent;
 
       if (Platform.OS === "web") {
-        setDownloadReady({ fileName, content: xmlContent, session });
+        setDownloadReady({ fileName, content: finalContent, session });
       } else {
         const fileUri =
           ((FileSystem as any).documentDirectory ||
             (FileSystem as any).cacheDirectory ||
             "") + fileName;
-        await FileSystem.writeAsStringAsync(fileUri, xmlContent);
+        await FileSystem.writeAsStringAsync(fileUri, finalContent);
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(fileUri);
         } else {
@@ -1166,7 +1172,7 @@ export default function DutyReports() {
                 onPress={() => {
                   if (!downloadReady) return;
                   // MUST BE SYNCHRONOUS
-                  downloadFileWeb(downloadReady.fileName, downloadReady.content, "application/vnd.ms-excel");
+                  downloadFileWeb(downloadReady.fileName, downloadReady.content, "application/octet-stream");
                   
                   // Show admin delete prompt if needed
                   if (currentUser?.role === "admin") {
