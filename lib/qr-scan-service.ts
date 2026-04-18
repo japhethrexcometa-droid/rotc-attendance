@@ -132,16 +132,21 @@ function shouldSkipRemote(): boolean {
   return false;
 }
 
-/** Pre-load ALL users into the cadet cache while online. Call on scanner mount. */
+/** Pre-load ALL users into the cadet cache while online.
+ *  Runs regardless of Field Mode — field mode means USE the cache, not SKIP populating it. */
 export async function populateCadetCache(): Promise<void> {
-  if (shouldSkipRemote()) return;
+  // Only skip if truly no internet — do NOT block on field mode
+  const isActuallyOffline =
+    (typeof window !== "undefined" && !navigator.onLine) ||
+    isOnlineSync() === false;
+  if (isActuallyOffline) return;
   try {
     const { data } = await supabase
       .from("users")
       .select("id, full_name, id_number, platoon, role, qr_token")
       .in("role", ["cadet", "officer"])
       .eq("is_deleted", false);
-    if (!data) return;
+    if (!data || data.length === 0) return;
     const cache = await readCadetCache();
     for (const u of data as any[]) {
       if (u.qr_token) {
@@ -156,7 +161,7 @@ export async function populateCadetCache(): Promise<void> {
     }
     await writeCadetCache(cache);
   } catch {
-    // silent — just means cache won't be pre-populated
+    // silent — cache stays as-is
   }
 }
 

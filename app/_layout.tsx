@@ -12,6 +12,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { startFieldModeConnectivity } from "../lib/field-mode";
 import { startSyncListener } from "../lib/offline-sync";
+import { populateCadetCache } from "../lib/qr-scan-service";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -19,9 +20,19 @@ export default function RootLayout() {
   useEffect(() => {
     const stopField = startFieldModeConnectivity();
     const stopListening = startSyncListener();
+    // Populate cadet cache immediately on startup (if online)
+    populateCadetCache().catch(() => {});
+    // Re-populate whenever internet comes back
+    const handleOnline = () => { populateCadetCache().catch(() => {}); };
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline);
+    }
     return () => {
       stopField();
       stopListening();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+      }
     };
   }, []);
 
