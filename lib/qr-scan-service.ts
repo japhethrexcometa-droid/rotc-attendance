@@ -75,6 +75,7 @@ export type ScanResult =
   | {
       outcome: "invalid";
       reason: "bad_token" | "self_scan" | "no_open_session" | "cadet_mismatch" | "officer_scanned_officer";
+      cadet?: CadetInfo;
     };
 
 type ParsedQr = {
@@ -219,6 +220,13 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
     return { outcome: "invalid", reason: "cadet_mismatch" };
   }
 
+  const cadet: CadetInfo = {
+    id: resolvedUser.id,
+    full_name: resolvedUser.full_name,
+    id_number: resolvedUser.id_number,
+    platoon: resolvedUser.platoon ?? null,
+  };
+
   // 4. Self-scan check
   if (resolvedUser.id === params.scannedBy) {
     await logScanAudit({
@@ -230,7 +238,7 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
       reason: "self_scan",
       payload_preview: params.qrToken.slice(0, 120),
     });
-    return { outcome: "invalid", reason: "self_scan" };
+    return { outcome: "invalid", reason: "self_scan", cadet };
   }
 
   // 4b. Officer scanning an officer check
@@ -245,16 +253,9 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
         reason: "officer_scanned_officer",
         payload_preview: params.qrToken.slice(0, 120),
       });
-      return { outcome: "invalid", reason: "officer_scanned_officer" };
+      return { outcome: "invalid", reason: "officer_scanned_officer", cadet };
     }
   }
-
-  const cadet: CadetInfo = {
-    id: resolvedUser.id,
-    full_name: resolvedUser.full_name,
-    id_number: resolvedUser.id_number,
-    platoon: resolvedUser.platoon ?? null,
-  };
 
   const cadetCache = await readCadetCache();
   cadetCache[parsedQr.token] = {

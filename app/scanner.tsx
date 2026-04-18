@@ -122,10 +122,24 @@ export default function QRScanner() {
           throw new Error("QR validation failed (cadet/token mismatch).");
         }
         if (result.reason === "self_scan") {
-          throw new Error("Self-scan is not allowed.");
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setScanResult({
+            success: false,
+            name: result.cadet?.full_name,
+            message: "Self-scan is not allowed.",
+            type: "error",
+          });
+          return;
         }
         if (result.reason === "officer_scanned_officer") {
-          throw new Error("Only the Admin can scan Officers.");
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setScanResult({
+            success: false,
+            name: result.cadet?.full_name,
+            message: "Only the Admin can scan Officers.",
+            type: "error",
+          });
+          return;
         }
         throw new Error("No open session.");
       }
