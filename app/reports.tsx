@@ -746,8 +746,8 @@ export default function DutyReports() {
   ${allSheets.join("\n")}
 </Workbook>`;
 
-      // Note: this export is Excel 2003 XML. Using .xml avoids Excel "file format doesn't match extension" warnings.
-      const fileName = `ROTC_Attendance_${Date.now()}.xml`;
+      // Note: this export is Excel 2003 XML. Using .xls prompts Excel to open it natively, even with XML tags.
+      const fileName = `ROTC_Attendance_${Date.now()}.xls`;
 
       if (Platform.OS === "web") {
         setDownloadReady({ fileName, content: xmlContent, session });
@@ -1166,7 +1166,7 @@ export default function DutyReports() {
                 onPress={() => {
                   if (!downloadReady) return;
                   // MUST BE SYNCHRONOUS
-                  downloadFileWeb(downloadReady.fileName, downloadReady.content);
+                  downloadFileWeb(downloadReady.fileName, downloadReady.content, "application/vnd.ms-excel");
                   
                   // Show admin delete prompt if needed
                   if (currentUser?.role === "admin") {
