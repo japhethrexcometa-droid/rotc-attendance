@@ -102,7 +102,7 @@ export default function LoginScreen() {
         }),
       ]).start();
     }
-  }, [dbStatus]);
+  }, [dbStatus, fadeAnim, slideAnim, logoScale]);
 
   const handleLogin = async () => {
     setLoginError(null);
