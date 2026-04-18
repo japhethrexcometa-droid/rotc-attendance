@@ -6,6 +6,7 @@ import {
   ChevronRight,
   LogOut,
   QrCode,
+  Settings,
   User,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
@@ -286,9 +287,18 @@ export default function CadetDashboard() {
             <TouchableOpacity onPress={handleLogout} style={styles.iconBtn}>
               <LogOut color="rgba(255,255,255,0.7)" size={20} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Bell color="rgba(255,255,255,0.7)" size={20} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => router.push("/account-settings")}
+                accessibilityLabel="Account Settings"
+              >
+                <Settings color="rgba(255,255,255,0.7)" size={20} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn}>
+                <Bell color="rgba(255,255,255,0.7)" size={20} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.unitHeaderGroup}>

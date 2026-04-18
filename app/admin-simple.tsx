@@ -9,6 +9,7 @@ import {
   Copy,
   ExternalLink,
   FileText,
+  KeyRound,
   LogOut,
   Scan,
   Settings,
@@ -229,9 +230,18 @@ export default function CommanderDashboard() {
               >
                 <LogOut color="rgba(255,255,255,0.7)" size={20} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.headerIconBtn}>
-                <Bell color="rgba(255,255,255,0.7)" size={20} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <TouchableOpacity
+                  style={styles.headerIconBtn}
+                  onPress={() => handleAction("/account-settings")}
+                  accessibilityLabel="Account Settings"
+                >
+                  <KeyRound color="rgba(255,255,255,0.7)" size={20} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIconBtn}>
+                  <Bell color="rgba(255,255,255,0.7)" size={20} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.unitHeaderGroup}>

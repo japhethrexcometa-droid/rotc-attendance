@@ -4,6 +4,7 @@ import {
   Calendar,
   ClipboardList,
   IdCard,
+  KeyRound,
   List,
   LogOut,
   ScanLine,
@@ -205,13 +206,22 @@ export default function OfficerDashboard() {
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push("/settings")}
-            style={styles.settingsIconBtn}
-            accessibilityLabel="Settings"
-          >
-            <Settings color="rgba(255,255,255,0.8)" size={22} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => router.push("/account-settings")}
+              style={styles.settingsIconBtn}
+              accessibilityLabel="Account Settings"
+            >
+              <KeyRound color="rgba(255,255,255,0.8)" size={20} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/settings")}
+              style={styles.settingsIconBtn}
+              accessibilityLabel="Field Mode Settings"
+            >
+              <Settings color="rgba(255,255,255,0.8)" size={22} />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
       </Animated.View>
