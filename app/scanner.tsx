@@ -161,74 +161,78 @@ export default function QRScanner() {
     <View style={styles.container}>
       <CameraView
         style={StyleSheet.absoluteFillObject}
+        facing="back"
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
         barcodeScannerSettings={{
           barcodeTypes: ["qr"],
         }}
-      />
-
-      {/* Overlay UI */}
-      <View style={styles.overlay}>
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
-            <ArrowLeft color="#FFF" size={24} />
-          </TouchableOpacity>
-          <Text style={styles.title}>SCANNER {activeSessionType ? `(${activeSessionType})` : ""}</Text>
-          <View style={{ width: 40 }} />
+      >
+        {/* Professional Military Scanner Mask */}
+        <View style={styles.maskContainer}>
+          <View style={styles.maskRow}>
+            {/* Top Bar inside mask so it's above the camera */}
+            <View style={styles.topBar}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.6} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
+                <ArrowLeft color="#FFF" size={24} />
+              </TouchableOpacity>
+              <Text style={styles.title}>SCANNER {activeSessionType ? `(${activeSessionType})` : ""}</Text>
+              <View style={{ width: 40 }} />
+            </View>
+          </View>
+          
+          <View style={styles.maskCenter}>
+            <View style={styles.maskCol} />
+            <View style={styles.scanHole}>
+              {/* Corner brackets */}
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
+            <View style={styles.maskCol} />
+          </View>
+          
+          <View style={[styles.maskRow, styles.bottomMask]}>
+            <Text style={styles.scanInstruction}>
+              ALIGN QR CODE IN FRAME
+            </Text>
+            {isProcessing && (
+              <ActivityIndicator size="large" color="#FFF" style={{ marginTop: 20 }} />
+            )}
+          </View>
         </View>
 
-        <View style={styles.scannerOutline}>
-          <View style={styles.cornerTL} />
-          <View style={styles.cornerTR} />
-          <View style={styles.cornerBL} />
-          <View style={styles.cornerBR} />
-          {isProcessing && (
-            <ActivityIndicator size="large" color="#FFF" />
-          )}
-        </View>
-
-        <View style={styles.instructionBox}>
-          <Info color="rgba(255,255,255,0.7)" size={16} />
-          <Text style={styles.instruction}>Align the QR code within the frame</Text>
-        </View>
+        {/* Pending sync badge */}
         {pendingCount > 0 && (
           <View style={styles.pendingBadge}>
             <Text style={styles.pendingBadgeText}>{pendingCount} pending sync</Text>
           </View>
         )}
-      </View>
 
-      {/* Result Modal / Bottom Sheet */}
-      {scanResult && (
-        <View style={styles.resultContainer}>
-          <View style={styles.resultCard}>
-            <View style={styles.iconCircle}>
-              {scanResult.success ? (
-                <ShieldCheck color="#2D5A27" size={48} />
-              ) : (
-                <XCircle color="#A52A2A" size={48} />
-              )}
-            </View>
-            
-            <Text style={[styles.resultStatus, { color: scanResult.success ? "#2D5A27" : "#A52A2A" }]}>
-              {scanResult.success ? "VERIFIED" : "FAILED"}
-            </Text>
-            
-            {scanResult.name && (
-              <Text style={styles.resultName}>{scanResult.name.toUpperCase()}</Text>
+        {/* Feedback Banner matching Officer Scanner */}
+        {scanResult && (
+          <View style={[
+            styles.feedbackBanner, 
+            scanResult.success ? (scanResult.type === "present" ? styles.bgSuccess : styles.bgWarning) : styles.bgError
+          ]}>
+            {scanResult.success ? (
+              <ShieldCheck color="#FFF" size={30} />
+            ) : (
+              <XCircle color="#FFF" size={30} />
             )}
-            
-            <Text style={styles.resultMessage}>{scanResult.message}</Text>
 
-            <TouchableOpacity 
-              style={[styles.actionBtn, { backgroundColor: scanResult.success ? "#1F3D2B" : "#A52A2A" }]} 
-              onPress={resetScanner}
-            >
-              <Text style={styles.actionBtnText}>CONTINUE SCANNING</Text>
-            </TouchableOpacity>
+            <View style={styles.feedbackTextGroup}>
+              {scanResult.name && (
+                <Text style={styles.feedbackName}>{scanResult.name}</Text>
+              )}
+              <Text style={styles.feedbackStatus}>{scanResult.message}</Text>
+            </View>
+
+            {/* Tap anywhere to continue */}
+            <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={resetScanner} />
           </View>
-        </View>
-      )}
+        )}
+      </CameraView>
     </View>
   );
 }
@@ -268,101 +272,92 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 2,
   },
-  scannerOutline: {
-    width: width * 0.7,
-    height: width * 0.7,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cornerTL: { position: "absolute", top: 0, left: 0, width: 40, height: 40, borderTopWidth: 4, borderLeftWidth: 4, borderColor: "#D4A353" },
-  cornerTR: { position: "absolute", top: 0, right: 0, width: 40, height: 40, borderTopWidth: 4, borderRightWidth: 4, borderColor: "#D4A353" },
-  cornerBL: { position: "absolute", bottom: 0, left: 0, width: 40, height: 40, borderBottomWidth: 4, borderLeftWidth: 4, borderColor: "#D4A353" },
-  cornerBR: { position: "absolute", bottom: 0, right: 0, width: 40, height: 40, borderBottomWidth: 4, borderRightWidth: 4, borderColor: "#D4A353" },
-  
-  instructionBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  instruction: {
-    color: "#FFF",
-    fontSize: 12,
-    marginLeft: 8,
-    fontWeight: "600",
-  },
-  
-  resultContainer: {
+  maskContainer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    justifyContent: "center",
+  },
+  maskRow: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
+  maskCenter: {
+    flexDirection: "row",
+    height: 260,
+  },
+  maskCol: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
+  scanHole: {
+    width: 260,
+    height: 260,
+    backgroundColor: "transparent",
+  },
+  bottomMask: {
+    justifyContent: "flex-start",
     alignItems: "center",
-    padding: 30,
+    paddingTop: 30,
   },
-  resultCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 32,
-    width: "100%",
-    padding: 30,
-    alignItems: "center",
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#F8F9F7",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  resultStatus: {
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 2,
-    marginBottom: 10,
-  },
-  resultName: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#1F3D2B",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  resultMessage: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 30,
-  },
-  actionBtn: {
-    width: "100%",
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  actionBtnText: {
+  scanInstruction: {
     color: "#FFF",
     fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: 1,
+    fontWeight: "bold",
+    letterSpacing: 2,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    overflow: "hidden",
   },
-  errorText: { color: "#FFF", marginBottom: 20 },
-  btn: { backgroundColor: "#1F3D2B", padding: 15, borderRadius: 10 },
-  btnText: { color: "#FFF", fontWeight: "bold" },
+  corner: {
+    position: "absolute",
+    width: 40,
+    height: 40,
+    borderColor: "#FFD700", // Gold military accent
+  },
+  topLeft: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4 },
+  topRight: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4 },
+
   pendingBadge: {
     position: "absolute",
-    bottom: 120,
-    backgroundColor: "rgba(245,124,0,0.95)",
+    top: 100, // Move down from top bar
+    right: 20,
+    backgroundColor: "#F57C00",
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
-  pendingBadgeText: {
+  pendingBadgeText: { color: "#FFF", fontSize: 12, fontWeight: "600" },
+
+  feedbackBanner: {
+    position: "absolute",
+    bottom: 50,
+    left: 20,
+    right: 20,
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  bgSuccess: { backgroundColor: "#4CAF50" },
+  bgWarning: { backgroundColor: "#F57C00" },
+  bgError: { backgroundColor: "#D32F2F" },
+  feedbackTextGroup: { marginLeft: 15, flex: 1 },
+  feedbackName: { fontSize: 18, fontWeight: "bold", color: "#FFF" },
+  feedbackStatus: {
+    fontSize: 14,
     color: "#FFF",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.3,
+    opacity: 0.9,
+    marginTop: 2,
+    fontWeight: "600",
   },
 });
