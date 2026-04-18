@@ -4,16 +4,14 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import "react-native-url-polyfill/auto";
 
-// Connection strategy:
-// - Default to remote Supabase for reliable Expo Go testing.
-// - Use local Supabase only when explicitly enabled via env flag.
+// Always use Remote Supabase (Vercel deployment).
+// Local Supabase is only used when explicitly enabled via environment flag.
 const USE_LOCAL =
   process.env.EXPO_PUBLIC_USE_LOCAL_SUPABASE === "true" ||
   process.env.EXPO_PUBLIC_USE_LOCAL_SUPABASE === "1";
 
 function getDevHost(): string | null {
-  // Expo provides the dev server host through Constants in Expo Go / dev builds.
-  // We use it to build LAN-reachable URLs when testing on a physical device.
+  // Detect local dev server host for local Supabase (not used in Vercel production).
   const candidates: (string | undefined)[] = [
     Constants.expoConfig?.hostUri,
     // Older SDKs / classic manifests
