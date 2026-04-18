@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import { enqueue, hasPendingScan } from "./offline-sync";
 import { enforceSessionCutoff, Session } from "./session-manager";
 import { supabase } from "./supabase";
+import { getSession } from "./auth";
 
 export type AttendanceStatus = "present" | "late" | "blocked";
 
@@ -72,7 +73,7 @@ export type ScanResult =
   | { outcome: "blocked"; reason: "cutoff_passed" }
   | {
       outcome: "invalid";
-      reason: "bad_token" | "self_scan" | "no_open_session" | "cadet_mismatch";
+      reason: "bad_token" | "self_scan" | "no_open_session" | "cadet_mismatch" | "officer_scanned_officer";
     };
 
 type ParsedQr = {
@@ -229,6 +230,23 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
       payload_preview: params.qrToken.slice(0, 120),
     });
     return { outcome: "invalid", reason: "self_scan" };
+  }
+
+  // 4b. Officer scanning an officer check
+  if (resolvedUser.role === "officer") {
+    const scannerSession = await getSession();
+    if (scannerSession?.role !== "admin") {
+      await logScanAudit({
+        scanned_by: params.scannedBy,
+        session_id: activeSession.id,
+        cadet_id: resolvedUser.id,
+        outcome: "invalid",
+        status: null,
+        reason: "officer_scanned_officer",
+        payload_preview: params.qrToken.slice(0, 120),
+      });
+      return { outcome: "invalid", reason: "officer_scanned_officer" };
+    }
   }
 
   const cadet: CadetInfo = {

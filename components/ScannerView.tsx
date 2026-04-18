@@ -226,6 +226,13 @@ function mapResultToFeedback(
           statusLine: "You cannot scan your own QR code.",
         };
       }
+      if (result.reason === "officer_scanned_officer") {
+        return {
+          color: "red",
+          icon: "x",
+          statusLine: "Only the Admin can scan Officers.",
+        };
+      }
       if (result.reason === "no_open_session") {
         return { color: "red", icon: "x", statusLine: "No active session." };
       }

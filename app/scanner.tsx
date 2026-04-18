@@ -123,6 +123,9 @@ export default function QRScanner() {
         if (result.reason === "self_scan") {
           throw new Error("Self-scan is not allowed.");
         }
+        if (result.reason === "officer_scanned_officer") {
+          throw new Error("Only the Admin can scan Officers.");
+        }
         throw new Error("No open session.");
       }
     } catch (error: any) {
