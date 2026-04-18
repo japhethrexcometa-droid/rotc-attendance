@@ -125,11 +125,25 @@ export default function ScannerView({ session, scannedBy }: ScannerViewProps) {
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
         onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
       >
-        <View style={styles.overlay}>
-          <Text style={styles.scanInstruction}>
-            Position QR Code within the frame
-          </Text>
-          <View style={styles.scanArea} />
+        {/* Professional Military Scanner Mask */}
+        <View style={styles.maskContainer}>
+          <View style={styles.maskRow} />
+          <View style={styles.maskCenter}>
+            <View style={styles.maskCol} />
+            <View style={styles.scanHole}>
+              {/* Corner brackets */}
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
+            <View style={styles.maskCol} />
+          </View>
+          <View style={[styles.maskRow, styles.bottomMask]}>
+            <Text style={styles.scanInstruction}>
+              ALIGN QR CODE IN FRAME
+            </Text>
+          </View>
         </View>
 
         {/* Pending sync badge */}
@@ -244,31 +258,52 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: "#1F3D2B", padding: 12, borderRadius: 8 },
   btnText: { color: "#FFF", fontWeight: "bold" },
 
-  overlay: {
+  maskContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  maskRow: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
+  maskCenter: {
+    flexDirection: "row",
+    height: 260,
+  },
+  maskCol: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
+  scanHole: {
+    width: 260,
+    height: 260,
+    backgroundColor: "transparent",
+  },
+  bottomMask: {
+    justifyContent: "flex-start",
     alignItems: "center",
+    paddingTop: 30,
   },
   scanInstruction: {
     color: "#FFF",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
-    marginBottom: 40,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    letterSpacing: 2,
+    backgroundColor: "rgba(0,0,0,0.8)",
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
     overflow: "hidden",
   },
-  scanArea: {
-    width: 300,
-    height: 300,
-    borderWidth: 3,
-    borderColor: "#4CAF50",
-    backgroundColor: "transparent",
-    borderRadius: 20,
+  corner: {
+    position: "absolute",
+    width: 40,
+    height: 40,
+    borderColor: "#FFD700", // Gold military accent
   },
+  topLeft: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4 },
+  topRight: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4 },
 
   pendingBadge: {
     position: "absolute",
