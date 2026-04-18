@@ -584,8 +584,9 @@ export default function DigitalIDScreen() {
                               })
                             : "INVALID"
                         }
-                        size={82}
+                        size={180}
                         color="#1F3D2B"
+                        ecl="H"
                       />
                     </View>
                     <Text style={styles.inlineQrLabel}>ATTENDANCE SCAN QR</Text>
@@ -1274,21 +1275,22 @@ const styles = StyleSheet.create({
   inlineQrSection: {
     width: "100%",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 14,
+    marginTop: 4,
   },
   inlineQrWrapper: {
     backgroundColor: "#FFF",
-    borderRadius: 10,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#EAECE6",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: "#1F3D2B",
   },
   inlineQrLabel: {
-    marginTop: 6,
-    fontSize: 10,
-    color: "#4A5D4E",
-    fontWeight: "800",
-    letterSpacing: 0.6,
+    marginTop: 10,
+    fontSize: 12,
+    color: "#1F3D2B",
+    fontWeight: "900",
+    letterSpacing: 1.2,
   },
 
   statusBadge: {

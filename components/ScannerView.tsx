@@ -114,7 +114,7 @@ export default function ScannerView({ session, scannedBy }: ScannerViewProps) {
     const fb = mapResultToFeedback(result, savedOffline);
     setFeedback(fb);
 
-    setTimeout(() => setScanned(false), 2000);
+    setTimeout(() => setScanned(false), 1200);
   };
 
   return (
@@ -262,12 +262,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   scanArea: {
-    width: 250,
-    height: 250,
-    borderWidth: 2,
+    width: 300,
+    height: 300,
+    borderWidth: 3,
     borderColor: "#4CAF50",
     backgroundColor: "transparent",
-    borderRadius: 16,
+    borderRadius: 20,
   },
 
   pendingBadge: {
