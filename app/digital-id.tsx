@@ -577,11 +577,8 @@ export default function DigitalIDScreen() {
                     <View style={styles.inlineQrWrapper}>
                       <QRCode
                         value={
-                          displayCadet
-                            ? JSON.stringify({
-                                cadet_id: displayCadet.id,
-                                token: displayCadet.qr_token ?? "",
-                              })
+                          displayCadet?.qr_token
+                            ? displayCadet.qr_token
                             : "INVALID"
                         }
                         size={180}
