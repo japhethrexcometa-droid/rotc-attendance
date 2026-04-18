@@ -435,9 +435,20 @@ export async function batchInsertOnly(
         .filter((r) => r.is_deleted !== true)
         .map((r) => r.id_number)
     );
-    
+
     const toUpsert = chunk.filter((c) => !existingActive.has(c.id_number));
-    result.skipped += chunk.length - toUpsert.length;
+    const truelySkipped = chunk.filter((c) => existingActive.has(c.id_number));
+    result.skipped += truelySkipped.length;
+
+    // Also add skipped (already active) cadets to credentials report so admin can always re-download
+    result.credentialsReport.push(
+      ...truelySkipped.map((entry) => ({
+        id_number: entry.id_number,
+        full_name: entry.full_name,
+        raw_password: entry.raw_password,
+      })),
+    );
+
     if (toUpsert.length === 0) continue;
 
     const upsertPayload = toUpsert.map(({ raw_password, ...dbRow }) => ({

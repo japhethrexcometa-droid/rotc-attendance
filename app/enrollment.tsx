@@ -144,47 +144,56 @@ export default function BulkEnrollment() {
   const exportCredentialsCsv = async (
     entries: { id_number: string; full_name: string; raw_password: string }[],
   ) => {
-    if (entries.length === 0) return;
-    const csvHeader = "ID Number,Full Name,Auto Password\n";
-    const csvRows = entries
-      .map((entry) => {
-        const safeName = `"${entry.full_name.replace(/"/g, '""')}"`;
-        return `${entry.id_number},${safeName},${entry.raw_password}`;
-      })
-      .join("\n");
-    const csvContent = `${csvHeader}${csvRows}\n`;
-    const filename = `rotc-credentials-${Date.now()}.csv`;
-
-    if (Platform.OS === "web") {
-      downloadFileWeb(filename, csvContent);
+    if (entries.length === 0) {
+      setConfirmProp({
+        title: "No Credentials",
+        message: "All records were skipped (already enrolled). No new credentials to download.",
+        confirmText: "OK",
+      });
       return;
     }
+    try {
+      const csvHeader = "ID Number,Full Name,Auto Password\n";
+      const csvRows = entries
+        .map((entry) => {
+          const safeName = `"${entry.full_name.replace(/"/g, '""')}"`;
+          return `${entry.id_number},${safeName},${entry.raw_password}`;
+        })
+        .join("\n");
+      const csvContent = `${csvHeader}${csvRows}\n`;
+      const filename = `rotc-credentials-${Date.now()}.csv`;
 
-    const fs = FileSystem as any;
-    const filePath = `${fs.cacheDirectory}${filename}`;
-    await FileSystem.writeAsStringAsync(filePath, csvContent, { encoding: fs.EncodingType.UTF8 });
+      if (Platform.OS === "web") {
+        downloadFileWeb(filename, csvContent);
+        return;
+      }
+
+      const fs = FileSystem as any;
+      const filePath = `${fs.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(filePath, csvContent, { encoding: fs.EncodingType.UTF8 });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(filePath, {
           mimeType: "text/csv",
-          dialogTitle: "Share Cadet Credentials Report",
+          dialogTitle: "Share Credentials Report",
           UTI: "public.comma-separated-values-text",
         });
       } else {
         setConfirmProp({
           title: "Saved",
           message: `Credentials report saved at:\n${filePath}`,
-          confirmText: "Got it"
+          confirmText: "Got it",
         });
       }
     } catch (err: any) {
       console.error(err);
       setConfirmProp({
         title: "Export Failed",
-        message: "Failed to download credentials report",
-        confirmText: "Close"
+        message: err?.message || "Failed to download credentials report.",
+        confirmText: "Close",
       });
     }
   };
+
 
   const pickDocument = async () => {
     try {
@@ -536,15 +545,14 @@ export default function BulkEnrollment() {
             <TouchableOpacity
               style={styles.modalBtnMain}
               onPress={async () => {
-                try {
-                  if (successModal?.credentialsReport) {
-                    await exportCredentialsCsv(successModal.credentialsReport);
-                  }
-                } catch (err: any) {
-                  alertRemoteFailure("Export Failed", err?.message);
-                } finally {
-                  setSuccessModal(null);
-                  importMode === "officer" ? router.replace("/officer") : router.back();
+                const report = successModal?.credentialsReport ?? [];
+                setSuccessModal(null);
+                await exportCredentialsCsv(report);
+                // Navigate only after modal is already closed
+                if (importMode === "officer") {
+                  router.replace("/officer");
+                } else {
+                  router.back();
                 }
               }}
             >
@@ -555,7 +563,11 @@ export default function BulkEnrollment() {
               style={styles.modalBtnClose}
               onPress={() => {
                 setSuccessModal(null);
-                importMode === "officer" ? router.replace("/officer") : router.back();
+                if (importMode === "officer") {
+                  router.replace("/officer");
+                } else {
+                  router.back();
+                }
               }}
             >
               <Text style={styles.modalBtnTextClose}>Skip & Continue</Text>
