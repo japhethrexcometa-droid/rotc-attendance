@@ -14,8 +14,9 @@ import {
 import { getSession } from "../lib/auth";
 import { requireRole } from "../lib/authz";
 import { getPendingCount } from "../lib/offline-sync";
-import { processQRScan } from "../lib/qr-scan-service";
-import { getCurrentScannableSession } from "../lib/session-manager";
+import { processQRScan, populateCadetCache } from "../lib/qr-scan-service";
+import { getCachedScannableSession, getCurrentScannableSession } from "../lib/session-manager";
+import { isFieldModeStrictSync, isOnlineSync } from "../lib/field-mode";
 
 const { width } = Dimensions.get("window");
 
@@ -62,6 +63,8 @@ export default function QRScanner() {
         setActiveSessionType(session.session_type);
       }
     }).catch(() => {});
+    // Pre-populate cadet cache while online so scanning works offline
+    populateCadetCache().catch(() => {});
   }, []);
 
   if (!authorized) {
@@ -81,7 +84,24 @@ export default function QRScanner() {
         throw new Error("Scanner session expired. Please login again.");
       }
 
-      const session = await getCurrentScannableSession();
+      // Fast offline path: skip Supabase and use cached session directly
+      const isOffline = isFieldModeStrictSync() || isOnlineSync() === false ||
+        (typeof window !== "undefined" && !navigator.onLine);
+
+      let session;
+      if (isOffline) {
+        session = await getCachedScannableSession();
+        // Validate cached session is still in-time
+        if (session) {
+          const now = new Date();
+          const nowMins = now.getHours() * 60 + now.getMinutes();
+          const cutoffParts = session.cutoff_time.split(":");
+          const cutoffMins = Number(cutoffParts[0]) * 60 + Number(cutoffParts[1]);
+          if (nowMins >= cutoffMins) session = null;
+        }
+      } else {
+        session = await getCurrentScannableSession();
+      }
       if (!session) {
         throw new Error("No active session. Session may be closed or cutoff reached.");
       }

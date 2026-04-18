@@ -16,6 +16,7 @@ export interface CadetInfo {
 }
 
 const QR_CADET_CACHE_KEY = "rotc_qr_cadet_cache";
+const LOCAL_ATTENDED_KEY = "rotc_local_attended"; // cadetId:sessionId sets
 
 type CachedCadet = CadetInfo & { role?: string };
 type CadetCacheMap = Record<string, CachedCadet>;
@@ -50,6 +51,27 @@ async function readCadetCache(): Promise<CadetCacheMap> {
 
 async function writeCadetCache(map: CadetCacheMap): Promise<void> {
   await storage.setItem(QR_CADET_CACHE_KEY, JSON.stringify(map));
+}
+
+async function readLocalAttended(): Promise<Set<string>> {
+  try {
+    const raw = await storage.getItem(LOCAL_ATTENDED_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+async function markLocallyAttended(cadetId: string, sessionId: string): Promise<void> {
+  const set = await readLocalAttended();
+  set.add(`${cadetId}:${sessionId}`);
+  await storage.setItem(LOCAL_ATTENDED_KEY, JSON.stringify([...set]));
+}
+
+export async function isLocallyAttended(cadetId: string, sessionId: string): Promise<boolean> {
+  const set = await readLocalAttended();
+  return set.has(`${cadetId}:${sessionId}`);
 }
 
 function isLikelyNetworkError(message?: string): boolean {
@@ -105,7 +127,37 @@ function parseQrPayload(raw: string): ParsedQr {
 function shouldSkipRemote(): boolean {
   if (isFieldModeStrictSync()) return true;
   if (isOnlineSync() === false) return true;
+  // Synchronous browser check as fallback (catches case where isOnlineSync is null)
+  if (typeof window !== "undefined" && !navigator.onLine) return true;
   return false;
+}
+
+/** Pre-load ALL users into the cadet cache while online. Call on scanner mount. */
+export async function populateCadetCache(): Promise<void> {
+  if (shouldSkipRemote()) return;
+  try {
+    const { data } = await supabase
+      .from("users")
+      .select("id, full_name, id_number, platoon, role, qr_token")
+      .in("role", ["cadet", "officer"])
+      .eq("is_deleted", false);
+    if (!data) return;
+    const cache = await readCadetCache();
+    for (const u of data as any[]) {
+      if (u.qr_token) {
+        cache[u.qr_token] = {
+          id: u.id,
+          full_name: u.full_name,
+          id_number: u.id_number,
+          platoon: u.platoon ?? null,
+          role: u.role,
+        };
+      }
+    }
+    await writeCadetCache(cache);
+  } catch {
+    // silent — just means cache won't be pre-populated
+  }
 }
 
 async function logScanAudit(payload: {
@@ -290,7 +342,13 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
     existing = res.data;
   }
 
-  // 6. Duplicate
+  // 6. Duplicate - check local attendance cache first (handles online-then-offline case)
+  const localDupe = await isLocallyAttended(resolvedUser.id, activeSession.id);
+  if (localDupe) {
+    return { outcome: "duplicate", cadet };
+  }
+
+  // DB duplicate check (only when online)
   if (existing) {
     await logScanAudit({
       scanned_by: params.scannedBy,
@@ -301,6 +359,8 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
       reason: null,
       payload_preview: params.qrToken.slice(0, 120),
     });
+    // Also mark locally so future offline scans are correctly rejected
+    await markLocallyAttended(resolvedUser.id, activeSession.id);
     return { outcome: "duplicate", cadet };
   }
 
@@ -353,6 +413,8 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
       scanned_by: params.scannedBy,
       synced: false,
     });
+    // Mark locally so if re-scanned while still offline, we detect the duplicate
+    await markLocallyAttended(resolvedUser.id, activeSession.id);
     await logScanAudit({
       scanned_by: params.scannedBy,
       session_id: activeSession.id,
@@ -363,6 +425,38 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
       payload_preview: params.qrToken.slice(0, 120),
     });
   } else {
+    // Online path: insert to DB
+    const { error } = await supabase.from("attendance").insert({
+      cadet_id: resolvedUser.id,
+      session_id: activeSession.id,
+      status,
+      scanned_by: params.scannedBy,
+      scan_time: localScanTime,
+    });
+    if (error) {
+      if (error.code === "23505") {
+        await markLocallyAttended(resolvedUser.id, activeSession.id);
+        return { outcome: "duplicate", cadet };
+      }
+      // Network error mid-request — queue offline
+      if (isLikelyNetworkError(error.message)) {
+        await enqueue({
+          localId: `offline_${Date.now()}_${resolvedUser.id}`,
+          cadet_id: resolvedUser.id,
+          session_id: activeSession.id,
+          status,
+          scan_time: localScanTime,
+          scanned_by: params.scannedBy,
+          synced: false,
+        });
+        await markLocallyAttended(resolvedUser.id, activeSession.id);
+      } else {
+        throw error;
+      }
+    } else {
+      // Successfully recorded online — mark locally so offline re-scan is caught
+      await markLocallyAttended(resolvedUser.id, activeSession.id);
+    }
     await logScanAudit({
       scanned_by: params.scannedBy,
       session_id: activeSession.id,

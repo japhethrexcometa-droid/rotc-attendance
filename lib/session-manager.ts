@@ -167,7 +167,7 @@ function todayLocalDate(): string {
   return `${y}-${m}-${d}`;
 }
 
-async function getCachedScannableSession(): Promise<Session | null> {
+export async function getCachedScannableSession(): Promise<Session | null> {
   try {
     const raw = await storage.getItem(SCANNABLE_SESSION_CACHE_KEY);
     if (!raw) return null;
