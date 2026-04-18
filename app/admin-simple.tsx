@@ -120,7 +120,8 @@ export default function CommanderDashboard() {
               .from("users")
               .select("id", { count: "exact", head: true })
               .eq("role", "cadet")
-              .eq("is_active", true),
+              .eq("is_active", true)
+              .eq("is_deleted", false),
             supabase
               .from("attendance")
               .select("id", { count: "exact", head: true })

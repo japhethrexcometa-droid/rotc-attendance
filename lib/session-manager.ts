@@ -440,10 +440,12 @@ export async function syncPendingSessionMutations(): Promise<void> {
 
 export async function autoMarkAbsents(sessionId: string): Promise<number> {
   // Include both cadets and officers so officers also get attendance tracked
+  // Filter out soft-deleted and inactive users
   const { data: allUsers, error: usersError } = await supabase
     .from("users")
-    .select("id, role, is_active")
-    .in("role", ["cadet", "CADET", "officer"]);
+    .select("id, role, is_active, is_deleted")
+    .in("role", ["cadet", "officer"])
+    .eq("is_deleted", false);
 
   if (usersError || !allUsers || allUsers.length === 0) return 0;
 
