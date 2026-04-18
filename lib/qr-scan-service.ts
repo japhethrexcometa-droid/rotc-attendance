@@ -4,6 +4,7 @@ import { enqueue, hasPendingScan } from "./offline-sync";
 import { enforceSessionCutoff, Session } from "./session-manager";
 import { supabase } from "./supabase";
 import { getSession } from "./auth";
+import { isOnlineSync, isFieldModeStrictSync } from "./field-mode";
 
 export type AttendanceStatus = "present" | "late" | "blocked";
 
@@ -101,15 +102,22 @@ function parseQrPayload(raw: string): ParsedQr {
   return { token: trimmed };
 }
 
+function shouldSkipRemote(): boolean {
+  if (isFieldModeStrictSync()) return true;
+  if (isOnlineSync() === false) return true;
+  return false;
+}
+
 async function logScanAudit(payload: {
   scanned_by: string;
   session_id: string | null;
   cadet_id: string | null;
-  outcome: string;
+  outcome: "present" | "late" | "duplicate" | "blocked" | "invalid" | "accepted_offline" | "accepted";
   status: string | null;
   reason: string | null;
   payload_preview: string;
 }): Promise<void> {
+  if (shouldSkipRemote()) return;
   const { error } = await supabase.from("scan_audit_logs").insert(payload);
   if (error) {
     // Keep scanning flow uninterrupted if audit logging fails.
@@ -171,15 +179,21 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
   const parsedQr = parseQrPayload(params.qrToken);
 
   // 2. Lookup qr_token in users table
-  const { data: user, error: userError } = await supabase
-    .from("users")
-    .select("id, full_name, id_number, platoon, role")
-    .eq("qr_token", parsedQr.token)
-    .single();
+  let resolvedUser: any = null;
+  let userError: any = null;
 
-  let resolvedUser: any = user;
+  if (!shouldSkipRemote()) {
+    const res = await supabase
+      .from("users")
+      .select("id, full_name, id_number, platoon, role")
+      .eq("qr_token", parsedQr.token)
+      .single();
+    resolvedUser = res.data;
+    userError = res.error;
+  }
 
-  if ((userError || !user) && isLikelyNetworkError(userError?.message)) {
+  // Fallback to cache immediately if offline, or if network error occurred
+  if (shouldSkipRemote() || ((userError || !resolvedUser) && isLikelyNetworkError(userError?.message))) {
     const cache = await readCadetCache();
     const cached = cache[parsedQr.token];
     if (cached) {
@@ -265,12 +279,16 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
   await writeCadetCache(cadetCache);
 
   // 5. Check for existing attendance record
-  const { data: existing } = await supabase
-    .from("attendance")
-    .select("id")
-    .eq("cadet_id", resolvedUser.id)
-    .eq("session_id", activeSession.id)
-    .single();
+  let existing = null;
+  if (!shouldSkipRemote()) {
+    const res = await supabase
+      .from("attendance")
+      .select("id")
+      .eq("cadet_id", resolvedUser.id)
+      .eq("session_id", activeSession.id)
+      .single();
+    existing = res.data;
+  }
 
   // 6. Duplicate
   if (existing) {
@@ -322,25 +340,16 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
   }
 
   const now = new Date();
-  const scanTime = now.toISOString();
+  const timestamp = now.toLocaleTimeString("en-GB", { hour12: false });
+  const localScanTime = now.toISOString();
 
-  // 9. Try to INSERT attendance
-  const { error: insertError } = await supabase.from("attendance").insert({
-    cadet_id: resolvedUser.id,
-    session_id: activeSession.id,
-    status,
-    scanned_by: params.scannedBy,
-    scan_time: scanTime,
-  });
-
-  // 10. If INSERT fails, enqueue for offline sync
-  if (insertError) {
+  if (shouldSkipRemote()) {
     await enqueue({
-      localId: `${resolvedUser.id}_${activeSession.id}_${Date.now()}`,
+      localId: `offline_${Date.now()}_${resolvedUser.id}`,
       cadet_id: resolvedUser.id,
       session_id: activeSession.id,
       status,
-      scan_time: scanTime,
+      scan_time: localScanTime,
       scanned_by: params.scannedBy,
       synced: false,
     });
@@ -365,7 +374,5 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
     });
   }
 
-  // 11. Return result
-  const timestamp = now.toLocaleTimeString("en-GB", { hour12: false });
   return { outcome: status, cadet, timestamp };
 }

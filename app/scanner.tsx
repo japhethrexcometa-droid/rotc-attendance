@@ -290,6 +290,23 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 2,
   },
+  errorText: {
+    color: "#FFF",
+    textAlign: "center",
+    marginBottom: 20,
+    fontSize: 16,
+  },
+  btn: {
+    backgroundColor: "#F9A826",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  btnText: {
+    color: "#1F3D2B",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
   maskContainer: {
     ...StyleSheet.absoluteFillObject,
   },
