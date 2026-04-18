@@ -91,6 +91,7 @@ export default function QRScanner() {
         qrToken: data,
         session,
         scannedBy: currentUser.id,
+        scannedByRole: currentUser.role,
       });
       const afterPending = await getPendingCount();
       const savedOffline =

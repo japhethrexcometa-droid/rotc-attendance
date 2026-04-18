@@ -65,6 +65,7 @@ export interface ScanParams {
   qrToken: string;
   session: Session | null;
   scannedBy: string; // user ID of the officer/admin scanning
+  scannedByRole: string;
 }
 
 export type ScanResult =
@@ -234,8 +235,7 @@ export async function processQRScan(params: ScanParams): Promise<ScanResult> {
 
   // 4b. Officer scanning an officer check
   if (resolvedUser.role === "officer") {
-    const scannerSession = await getSession();
-    if (scannerSession?.role !== "admin") {
+    if (params.scannedByRole !== "admin") {
       await logScanAudit({
         scanned_by: params.scannedBy,
         session_id: activeSession.id,

@@ -313,7 +313,7 @@ function ScannerTab({ userSession }: { userSession: UserSession | null }) {
   }
 
   return (
-    <ScannerView session={openSession} scannedBy={userSession?.id ?? ""} />
+    <ScannerView session={openSession} scannedBy={userSession?.id ?? ""} scannedByRole={userSession?.role ?? ""} />
   );
 }
 

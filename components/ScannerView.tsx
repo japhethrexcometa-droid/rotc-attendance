@@ -16,6 +16,7 @@ import { Session } from "../lib/session-manager";
 interface ScannerViewProps {
   session: Session | null;
   scannedBy: string;
+  scannedByRole: string;
 }
 
 type FeedbackState = {
@@ -26,7 +27,7 @@ type FeedbackState = {
   savedOffline?: boolean;
 };
 
-export default function ScannerView({ session, scannedBy }: ScannerViewProps) {
+export default function ScannerView({ session, scannedBy, scannedByRole }: ScannerViewProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
@@ -88,7 +89,7 @@ export default function ScannerView({ session, scannedBy }: ScannerViewProps) {
     let savedOffline = false;
 
     try {
-      result = await processQRScan({ qrToken: data, session, scannedBy });
+      result = await processQRScan({ qrToken: data, session, scannedBy, scannedByRole });
 
       // Detect offline fallback: present/late outcome but INSERT may have failed
       // processQRScan enqueues when INSERT fails and still returns present/late
