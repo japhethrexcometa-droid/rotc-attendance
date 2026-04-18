@@ -1,5 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import NetInfo from "@react-native-community/netinfo";
 import { Alert, Platform } from "react-native";
 
 const FIELD_MODE_KEY = "rotc_field_mode_strict";
@@ -25,9 +23,40 @@ export function subscribeFieldMode(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+// ── Web-safe storage ────────────────────────────────────────────────────────
+const storage =
+  Platform.OS === "web"
+    ? {
+        getItem: (key: string) =>
+          Promise.resolve(
+            typeof window !== "undefined"
+              ? window.localStorage.getItem(key)
+              : null,
+          ),
+        setItem: (key: string, value: string) => {
+          if (typeof window !== "undefined")
+            window.localStorage.setItem(key, value);
+          return Promise.resolve();
+        },
+      }
+    : {
+        getItem: async (key: string) => {
+          const AsyncStorage = await import(
+            "@react-native-async-storage/async-storage"
+          ).then((m) => m.default);
+          return AsyncStorage.getItem(key);
+        },
+        setItem: async (key: string, value: string) => {
+          const AsyncStorage = await import(
+            "@react-native-async-storage/async-storage"
+          ).then((m) => m.default);
+          return AsyncStorage.setItem(key, value);
+        },
+      };
+
 export async function loadFieldModePreference(): Promise<boolean> {
   try {
-    const v = await AsyncStorage.getItem(FIELD_MODE_KEY);
+    const v = await storage.getItem(FIELD_MODE_KEY);
     strictFieldMode = v === "1" || v === "true";
   } catch {
     strictFieldMode = false;
@@ -37,7 +66,7 @@ export async function loadFieldModePreference(): Promise<boolean> {
 
 export async function setFieldModeStrict(enabled: boolean): Promise<void> {
   strictFieldMode = enabled;
-  await AsyncStorage.setItem(FIELD_MODE_KEY, enabled ? "1" : "0");
+  await storage.setItem(FIELD_MODE_KEY, enabled ? "1" : "0");
   emit();
 }
 
@@ -83,22 +112,66 @@ function applyNetState(state: {
 
 /**
  * Call once from root layout. Subscribes to connectivity updates.
+ * Works on both native (NetInfo) and web (navigator.onLine + events).
  */
 export function startFieldModeConnectivity(): () => void {
   void loadFieldModePreference();
 
-  const unsub = NetInfo.addEventListener((state) => {
-    applyNetState(state);
-    emit();
-  });
+  let nativeUnsub: (() => void) | null = null;
+  let webCleanup: (() => void) | null = null;
 
-  void NetInfo.fetch().then((state) => {
-    applyNetState(state);
+  // 1. Try native NetInfo (lazily imported to avoid web crashes)
+  import("@react-native-community/netinfo")
+    .then((NetInfo) => {
+      nativeUnsub = NetInfo.default.addEventListener((state) => {
+        applyNetState(state);
+        emit();
+      });
+
+      void NetInfo.default.fetch().then((state) => {
+        applyNetState(state);
+        emit();
+      });
+    })
+    .catch(() => {
+      // NetInfo not available — web fallback handles it
+    });
+
+  // 2. Web fallback: browser online/offline events
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    // Set initial state immediately
+    online = navigator.onLine;
     emit();
-  });
+
+    const handleOnline = () => {
+      online = true;
+      emit();
+    };
+    const handleOffline = () => {
+      online = false;
+      emit();
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Poll every 10s as a safety net for connectivity state
+    const pollId = setInterval(() => {
+      const prev = online;
+      online = navigator.onLine;
+      if (prev !== online) emit();
+    }, 10000);
+
+    webCleanup = () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      clearInterval(pollId);
+    };
+  }
 
   return () => {
-    unsub();
+    if (nativeUnsub) nativeUnsub();
+    if (webCleanup) webCleanup();
   };
 }
 
