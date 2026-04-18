@@ -144,7 +144,6 @@ export default function CadetRegistry() {
     });
   };
 
-  // Soft-delete: hides cadet from registry and disables login, but preserves history.
   const handleDeleteCadet = async (cadet: CadetRow) => {
     if (currentUser?.role !== "admin") {
       Alert.alert("Not allowed", "Only Admin can delete cadet accounts.");
@@ -176,6 +175,43 @@ export default function CadetRegistry() {
 
         setCadets((prev) => prev.filter((row) => row.id !== cadet.id));
         setWorkingId(null);
+      }
+    });
+  };
+
+  const handleDeleteAll = async () => {
+    if (currentUser?.role !== "admin") return;
+    if (filteredCadets.length === 0) return;
+
+    setConfirmProp({
+      title: "⚠️ WIPE REGISTRY",
+      message: `You are about to bulk-delete ALL ${filteredCadets.length} currently listed cadets. This will destroy their digital IDs and login access.\n\nUse this only if you need to wipe them out to re-import a clean batch.\n\nAre you absolutely sure?`,
+      confirmText: "YES, WIPE THEM",
+      danger: true,
+      onConfirm: async () => {
+        setLoading(true);
+        // Collect all IDs to delete
+        const idsToDelete = filteredCadets.map(c => c.id);
+
+        // Supabase limits bulk IN queries slightly, but a few hundred is fine.
+        const { error } = await supabase
+          .from("users")
+          .update({
+            is_deleted: true,
+            is_active: false,
+            password_hash: null,
+            qr_token: null,
+          })
+          .in("id", idsToDelete);
+
+        if (error) {
+          alertRemoteFailure("Bulk Delete Failed", error.message);
+        } else {
+          // Remove them from local state
+          const idSet = new Set(idsToDelete);
+          setCadets(prev => prev.filter(c => !idSet.has(c.id)));
+        }
+        setLoading(false);
       }
     });
   };
@@ -391,15 +427,27 @@ export default function CadetRegistry() {
       <View style={styles.content}>
         <View style={styles.listHeader}>
           <Text style={styles.countText}>{filteredCadets.length} RECORD(S)</Text>
-          {currentUser?.role === "admin" ? (
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => setShowAddModal(true)}
-            >
-              <UserPlus color="#1F3D2B" size={16} />
-              <Text style={styles.addBtnText}>ADD CADET</Text>
-            </TouchableOpacity>
-          ) : null}
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {currentUser?.role === "admin" && filteredCadets.length > 0 ? (
+              <TouchableOpacity
+                style={[styles.addBtn, { backgroundColor: "#FFEBEE" }]}
+                onPress={handleDeleteAll}
+              >
+                <UserX color="#A52A2A" size={16} />
+                <Text style={[styles.addBtnText, { color: "#A52A2A" }]}>WIPE ALL</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {currentUser?.role === "admin" ? (
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={() => setShowAddModal(true)}
+              >
+                <UserPlus color="#1F3D2B" size={16} />
+                <Text style={styles.addBtnText}>ADD CADET</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
 
         {loading ? (
